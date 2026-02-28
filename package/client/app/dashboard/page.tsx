@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import CreateProject from "./CreateProject";
 
 export default async function Dashboard() {
   const session = await getServerSession();
@@ -9,4 +10,5 @@ export default async function Dashboard() {
   }
 
   return <div>Welcome {session.user?.email}</div>;
+  <CreateProject/>
 }
