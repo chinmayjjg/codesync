@@ -9,6 +9,10 @@ export default async function Dashboard() {
     redirect("/login");
   }
 
-  return <div>Welcome {session.user?.email}</div>;
-  <CreateProject/>
+  return (
+    <div>
+      <p>Welcome, {session.user?.email}</p>
+      <CreateProject />
+    </div>
+  );
 }
