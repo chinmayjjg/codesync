@@ -1,10 +1,11 @@
 import { getServerSession } from "next-auth";
+import { authOptions } from "../../../lib/auth";
 import { prisma } from "../../../lib/prisma";
 import { NextResponse } from "next/server";
 
 // GET /api/projects – list all projects owned by the logged-in user
 export async function GET() {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
 
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -14,7 +15,7 @@ export async function GET() {
     where: { email: session.user.email },
     include: { projects: { include: { files: true } } },
   });
-  
+
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
@@ -24,7 +25,7 @@ export async function GET() {
 
 // POST /api/projects – create a new project for the logged-in user
 export async function POST(req: Request) {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
 
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
