@@ -2,14 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "../../../lib/auth";
 import { redirect } from "next/navigation";
 import CreateFile from "./CreateFile";
-
-async function getFiles(projectId: string) {
-    const res = await fetch(
-        `http://localhost:3000/api/projects/${projectId}/files`,
-        { cache: "no-store" }
-    );
-    return res.json();
-}
+import { prisma } from "../../../lib/prisma";
 
 export default async function ProjectPage({
     params,
@@ -20,7 +13,50 @@ export default async function ProjectPage({
 
     if (!session) redirect("/login");
 
-    const files = await getFiles(params.projectId);
+    // Ensure we have a projectId param
+    const projectId = params?.projectId;
+    if (!projectId) {
+        return (
+            <div style={{ padding: "40px" }}>
+                <h1>Project Files</h1>
+                <p>Missing project id.</p>
+            </div>
+        );
+    }
+
+    // Verify ownership and load files server-side via Prisma (avoids HTTP fetch and ensures array)
+    let project;
+    try {
+        project = await prisma.project.findUnique({ where: { id: projectId } });
+    } catch (err) {
+        console.error("Prisma findUnique error:", err);
+        return (
+            <div style={{ padding: "40px" }}>
+                <h1>Project Files</h1>
+                <p>Unable to load project.</p>
+            </div>
+        );
+    }
+
+    if (!project || project.ownerId !== session.user?.id) {
+        return (
+            <div style={{ padding: "40px" }}>
+                <h1>Project Files</h1>
+                <p>Forbidden or project not found.</p>
+            </div>
+        );
+    }
+
+    let files = [];
+    try {
+        files = await prisma.file.findMany({
+            where: { projectId },
+            orderBy: { updatedAt: "desc" },
+        });
+    } catch (err) {
+        console.error("Prisma findMany error:", err);
+        files = [];
+    }
 
     return (
         <div style={{ padding: "40px" }}>
