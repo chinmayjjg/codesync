@@ -14,7 +14,7 @@ export async function GET() {
     where: { email: session.user.email },
     include: { projects: { include: { files: true } } },
   });
-
+  
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
