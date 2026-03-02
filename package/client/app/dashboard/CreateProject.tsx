@@ -13,9 +13,9 @@ function ProjectsList() {
 
   return (
     <ul>
-      {projects.map(p => (
-        <li key={p.id}>{p.name}</li>
-      ))}
+      <a href={`/projects/${project.id}`}>
+      {project.name}
+       </a>
     </ul>
   );
 }
