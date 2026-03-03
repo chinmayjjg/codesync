@@ -7,6 +7,10 @@ type Project = {
   name: string;
 };
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export default function CreateProject() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [name, setName] = useState("");
@@ -23,9 +27,9 @@ export default function CreateProject() {
       if (!res.ok) throw new Error("Failed to load projects");
       const data = await res.json();
       setProjects(data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message ?? "Error fetching projects");
+      setError(getErrorMessage(err, "Error fetching projects"));
     }
   }
 
@@ -53,9 +57,9 @@ export default function CreateProject() {
       const project: Project = await res.json();
       setProjects(prev => [project, ...prev]);
       setName("");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message ?? "Error creating project");
+      setError(getErrorMessage(err, "Error creating project"));
     } finally {
       setLoading(false);
     }

@@ -49,9 +49,9 @@ export default function Signup() {
       setPassword("");
       setName("");
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Signup Error:", error);
-      alert(error.message || "Something went wrong");
+      alert(error instanceof Error ? error.message : "Something went wrong");
     } finally {
       setLoading(false);
     }

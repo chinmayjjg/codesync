@@ -16,5 +16,11 @@
     "ws": "^8.19.0",
     "y-websocket": "^3.0.0",
     "yjs": "^13.6.29"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "@types/ws": "^8.18.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
   }
 }

@@ -1,74 +1,64 @@
 import { getServerSession } from "next-auth";
+import { notFound, redirect } from "next/navigation";
 import { authOptions } from "../../../lib/auth";
-import { redirect } from "next/navigation";
-import CreateFile from "./CreateFile";
 import { prisma } from "../../../lib/prisma";
+import CodeEditor from "./Editor";
+import CreateFile from "./CreateFile";
+
+type ProjectFile = {
+  id: string;
+  name: string;
+  content: string;
+  projectId: string;
+};
+
+async function getFiles(projectId: string, userId: string) {
+  const project = await prisma.project.findFirst({
+    where: {
+      id: projectId,
+      ownerId: userId,
+    },
+    include: {
+      files: {
+        orderBy: { updatedAt: "desc" },
+      },
+    },
+  });
+
+  if (!project) {
+    notFound();
+  }
+
+  return project.files as ProjectFile[];
+}
 
 export default async function ProjectPage({
-    params,
+  params,
 }: {
-    params: { projectId: string };
+  params: { projectId: string };
 }) {
-    const session = await getServerSession(authOptions);
+  const session = await getServerSession(authOptions);
+  if (!session) redirect("/login");
+  if (!session.user?.id) redirect("/login");
 
-    if (!session) redirect("/login");
+  const files = await getFiles(params.projectId, session.user.id);
 
-    // Ensure we have a projectId param
-    const projectId = params?.projectId;
-    if (!projectId) {
-        return (
-            <div style={{ padding: "40px" }}>
-                <h1>Project Files</h1>
-                <p>Missing project id.</p>
-            </div>
-        );
-    }
+  const selectedFile = files[0];
 
-    // Verify ownership and load files server-side via Prisma (avoids HTTP fetch and ensures array)
-    let project;
-    try {
-        project = await prisma.project.findUnique({ where: { id: projectId } });
-    } catch (err) {
-        console.error("Prisma findUnique error:", err);
-        return (
-            <div style={{ padding: "40px" }}>
-                <h1>Project Files</h1>
-                <p>Unable to load project.</p>
-            </div>
-        );
-    }
+  return (
+    <div style={{ padding: "40px" }}>
+      <h1>Project Files</h1>
+      <CreateFile projectId={params.projectId} />
 
-    if (!project || project.ownerId !== session.user?.id) {
-        return (
-            <div style={{ padding: "40px" }}>
-                <h1>Project Files</h1>
-                <p>Forbidden or project not found.</p>
-            </div>
-        );
-    }
+      {files.length === 0 && (
+        <p>No files yet. Create one to open Monaco editor.</p>
+      )}
 
-    let files = [];
-    try {
-        files = await prisma.file.findMany({
-            where: { projectId },
-            orderBy: { updatedAt: "desc" },
-        });
-    } catch (err) {
-        console.error("Prisma findMany error:", err);
-        files = [];
-    }
+      {files.map((file) => (
+        <div key={file.id}>{file.name}</div>
+      ))}
 
-    return (
-        <div style={{ padding: "40px" }}>
-            <h1>Project Files</h1>
-
-            <CreateFile projectId={params.projectId} />
-
-            {files.length === 0 && <p>No files yet.</p>}
-
-            {files.map((file: { id: string; name: string }) => (
-                <div key={file.id}>{file.name}</div>
-            ))}
-        </div>
-    );
+      {selectedFile && <CodeEditor file={selectedFile} />}
+    </div>
+  );
 }
