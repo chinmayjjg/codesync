@@ -2,6 +2,7 @@
   "name": "server",
   "version": "1.0.0",
   "description": "",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "dev": "ts-node src/index.ts",
@@ -11,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@y/websocket-server": "^0.1.5",
     "dotenv": "^17.3.1",
     "jsonwebtoken": "^9.0.3",
     "ws": "^8.19.0",

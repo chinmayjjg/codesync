@@ -1,45 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
+import * as Y from "yjs";
+import { WebsocketProvider } from "y-websocket";
 
-type ProjectFile = {
-  id: string;
-  projectId: string;
-  content: string;
-};
+export default function CodeEditor({ file }: { file: any }) {
+  const editorRef = useRef<any>(null);
 
-export default function CodeEditor({
-  file,
-}: {
-  file: ProjectFile;
-}) {
-  const [code, setCode] = useState(file.content);
+  async function handleEditorDidMount(editor: any, monaco: any) {
+    editorRef.current = editor;
 
-  const saveFile = async () => {
-    await fetch(`/api/projects/${file.projectId}/files/${file.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: code }),
-    });
+    // Dynamically import MonacoBinding only on client side
+    const { MonacoBinding } = await import("y-monaco");
 
-    alert("Saved");
-  };
+    const ydoc = new Y.Doc();
+
+    const provider = new WebsocketProvider(
+      "ws://localhost:1234",
+      file.id,
+      ydoc
+    );
+
+    const yText = ydoc.getText("monaco");
+
+    new MonacoBinding(
+      yText,
+      editor.getModel(),
+      new Set([editor]),
+      provider.awareness
+    );
+  }
 
   return (
-    <div style={{ marginTop: "20px", minHeight: "400px" }}>
-      <Editor
-        height="60vh"
-        defaultLanguage="javascript"
-        value={code}
-        onChange={(value) => setCode(value || "")}
-        theme="vs-dark"
-        options={{ automaticLayout: true }}
-      />
-
-      <button onClick={saveFile} style={{ marginTop: "10px" }}>
-        Save
-      </button>
-    </div>
+    <Editor
+      height="500px"
+      defaultLanguage="javascript"
+      defaultValue={file.content}
+      theme="vs-dark"
+      onMount={handleEditorDidMount}
+    />
   );
 }

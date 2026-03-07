@@ -5,8 +5,9 @@ import { NextResponse } from "next/server";
 
 export async function POST(
   req: Request,
-  { params }: { params: { projectId: string } }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
+  const { projectId } = await params;
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
@@ -21,7 +22,7 @@ export async function POST(
 
   // Check ownership
   const project = await prisma.project.findUnique({
-    where: { id: params.projectId },
+    where: { id: projectId },
   });
 
   if (!project || project.ownerId !== session.user.id) {
@@ -32,7 +33,7 @@ export async function POST(
     data: {
       name,
       content: "",
-      projectId: params.projectId,
+      projectId: projectId,
     },
   });
 
@@ -41,8 +42,9 @@ export async function POST(
 
 export async function GET(
   req: Request,
-  { params }: { params: { projectId: string } }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
+  const { projectId } = await params;
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
@@ -50,7 +52,7 @@ export async function GET(
   }
 
   const project = await prisma.project.findUnique({
-    where: { id: params.projectId },
+    where: { id: projectId },
   });
 
   if (!project || project.ownerId !== session.user.id) {
@@ -58,7 +60,7 @@ export async function GET(
   }
 
   const files = await prisma.file.findMany({
-    where: { projectId: params.projectId },
+    where: { projectId: projectId },
     orderBy: { updatedAt: "desc" },
   });
 
