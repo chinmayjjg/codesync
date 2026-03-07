@@ -1,19 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
+import { MonacoBinding } from "y-monaco";
 
 export default function CodeEditor({ file }: { file: any }) {
-  const editorRef = useRef<any>(null);
 
-  async function handleEditorDidMount(editor: any, monaco: any) {
-    editorRef.current = editor;
-
-    // Dynamically import MonacoBinding only on client side
-    const { MonacoBinding } = await import("y-monaco");
-
+  function handleEditorDidMount(editor: any, monaco: any) {
     const ydoc = new Y.Doc();
 
     const provider = new WebsocketProvider(
@@ -30,6 +24,32 @@ export default function CodeEditor({ file }: { file: any }) {
       new Set([editor]),
       provider.awareness
     );
+
+    // User awareness
+    const username = "User-" + Math.floor(Math.random() * 1000);
+
+    provider.awareness.setLocalStateField("user", {
+      name: username,
+      color: "#" + Math.floor(Math.random() * 16777215).toString(16),
+    });
+
+    // Cursor tracking
+    editor.onDidChangeCursorPosition((event: any) => {
+      provider.awareness.setLocalStateField("cursor", {
+        position: event.position,
+      });
+    });
+
+    // Listen to other users
+    provider.awareness.on("change", () => {
+      const states = Array.from(provider.awareness.getStates().values());
+
+      states.forEach((state: any) => {
+        if (state.cursor) {
+          console.log("User cursor:", state.cursor.position);
+        }
+      });
+    });
   }
 
   return (
