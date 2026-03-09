@@ -42,14 +42,38 @@ export default function CodeEditor({ file }: { file: any }) {
 
     // Listen to other users
     provider.awareness.on("change", () => {
-      const states = Array.from(provider.awareness.getStates().values());
 
-      states.forEach((state: any) => {
-        if (state.cursor) {
-          console.log("User cursor:", state.cursor.position);
+  const states = Array.from(provider.awareness.getStates().entries())
+
+  const decorations: any[] = []
+
+  states.forEach(([clientId, state]: any) => {
+
+    if (clientId === provider.awareness.clientID) return
+
+    if (!state.cursor || !state.user) return
+
+    decorations.push({
+      range: new monaco.Range(
+        state.cursor.position.lineNumber,
+        state.cursor.position.column,
+        state.cursor.position.lineNumber,
+        state.cursor.position.column
+      ),
+      options: {
+        className: "remote-cursor",
+        after: {
+          content: state.user.name,
+          inlineClassName: "cursor-label"
         }
-      });
-    });
+      }
+    })
+
+  })
+
+  editor.deltaDecorations([], decorations)
+
+})
   }
 
   return (
