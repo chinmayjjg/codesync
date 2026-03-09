@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { WebSocketServer, WebSocket } from "ws";
 import { IncomingMessage } from "http";
+// @ts-expect-error - moduleResolution setting prevents loading these types
 import { setupWSConnection } from "@y/websocket-server/utils";
 
 const PORT = Number(process.env.PORT) || 8080;

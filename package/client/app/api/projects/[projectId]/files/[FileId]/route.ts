@@ -5,8 +5,9 @@ import { NextResponse } from "next/server";
 
 export async function PUT(
   req: Request,
-  { params }: { params: { FileId: string } }
+  { params }: { params: Promise<{ FileId: string }> }
 ) {
+  const { FileId } = await params;
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
@@ -16,7 +17,7 @@ export async function PUT(
   const { content } = await req.json();
 
   const file = await prisma.file.findUnique({
-    where: { id: params.FileId },
+    where: { id: FileId },
     include: { project: true },
   });
 
@@ -25,7 +26,7 @@ export async function PUT(
   }
 
   const updatedFile = await prisma.file.update({
-    where: { id: params.FileId },
+    where: { id: FileId },
     data: { content },
   });
 

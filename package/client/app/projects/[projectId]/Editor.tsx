@@ -5,8 +5,62 @@ import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { MonacoBinding } from "y-monaco";
 
-export default function CodeEditor({ file }: { file: any }) {
+type File = {
+  id: string;
+  content: string;
+};
 
+type ActiveCollaborator = {
+  clientId: number;
+  name: string;
+  color: string;
+};
+
+type CursorState = {
+  position: {
+    lineNumber: number;
+    column: number;
+  };
+};
+
+type AwarenessState = {
+  user?: {
+    name?: string;
+    color?: string;
+  };
+  cursor?: CursorState;
+};
+
+type MonacoEditorLike = {
+  getModel: () => unknown;
+  onDidChangeCursorPosition: (
+    cb: (event: { position: CursorState["position"] }) => void
+  ) => void;
+  deltaDecorations: (oldDecorations: string[], decorations: unknown[]) => void;
+  onDidDispose: (cb: () => void) => void;
+};
+
+type MonacoLike = {
+  Range: new (
+    startLineNumber: number,
+    startColumn: number,
+    endLineNumber: number,
+    endColumn: number
+  ) => unknown;
+  editor: {
+    TrackedRangeStickiness: {
+      NeverGrowsWhenTypingAtEdges: number;
+    };
+  };
+};
+
+export default function CodeEditor({
+  file,
+  onAwarenessChange,
+}: {
+  file: File;
+  onAwarenessChange?: (users: ActiveCollaborator[]) => void;
+}) {
   function handleEditorDidMount(editor: any, monaco: any) {
     const ydoc = new Y.Doc();
 
@@ -20,7 +74,7 @@ export default function CodeEditor({ file }: { file: any }) {
 
     new MonacoBinding(
       yText,
-      editor.getModel(),
+      editor.getModel() as never,
       new Set([editor]),
       provider.awareness
     );
@@ -42,38 +96,47 @@ export default function CodeEditor({ file }: { file: any }) {
 
     // Listen to other users
     provider.awareness.on("change", () => {
+      const states = Array.from(provider.awareness.getStates().entries());
+      const decorations: unknown[] = [];
+      const activeUsers: ActiveCollaborator[] = [];
 
-  const states = Array.from(provider.awareness.getStates().entries())
+      states.forEach(([clientId, state]) => {
+        const awarenessState = state as AwarenessState;
+        if (clientId === provider.awareness.clientID) return;
+        if (!awarenessState.user) return;
 
-  const decorations: any[] = []
+        activeUsers.push({
+          clientId,
+          name: awarenessState.user.name || "Anonymous",
+          color: awarenessState.user.color || "#666666",
+        });
 
-  states.forEach(([clientId, state]: any) => {
+        if (!awarenessState.cursor) return;
 
-    if (clientId === provider.awareness.clientID) return
+        decorations.push({
+          range: new monaco.Range(
+            awarenessState.cursor.position.lineNumber,
+            awarenessState.cursor.position.column,
+            awarenessState.cursor.position.lineNumber,
+            awarenessState.cursor.position.column
+          ),
+          options: {
+            className: "remote-cursor",
+            stickiness:
+              monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+          },
+        });
+      });
 
-    if (!state.cursor || !state.user) return
+      onAwarenessChange?.(activeUsers);
+      editor.deltaDecorations([], decorations);
+    });
 
-    decorations.push({
-      range: new monaco.Range(
-        state.cursor.position.lineNumber,
-        state.cursor.position.column,
-        state.cursor.position.lineNumber,
-        state.cursor.position.column
-      ),
-      options: {
-        className: "remote-cursor",
-        after: {
-          content: state.user.name,
-          inlineClassName: "cursor-label"
-        }
-      }
-    })
-
-  })
-
-  editor.deltaDecorations([], decorations)
-
-})
+    editor.onDidDispose(() => {
+      onAwarenessChange?.([]);
+      provider.destroy();
+      ydoc.destroy();
+    });
   }
 
   return (

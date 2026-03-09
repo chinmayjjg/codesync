@@ -11,15 +11,43 @@ type ProjectFile = {
   projectId: string;
 };
 
-async function getFiles(projectId: string, userId: string) {
+type Collaborator = {
+  id: string;
+  memberId: string | null;
+  email: string;
+  name: string | null;
+  role: "owner" | "editor" | "viewer";
+};
+
+async function getProjectData(projectId: string, userId: string) {
   const project = await prisma.project.findFirst({
     where: {
       id: projectId,
-      ownerId: userId,
+      OR: [
+        { ownerId: userId },
+        {
+          members: {
+            some: {
+              userId,
+            },
+          },
+        },
+      ],
     },
     include: {
       files: {
         orderBy: { updatedAt: "desc" },
+      },
+      members: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+            },
+          },
+        },
       },
     },
   });
@@ -28,7 +56,39 @@ async function getFiles(projectId: string, userId: string) {
     notFound();
   }
 
-  return project.files as ProjectFile[];
+  const owner = await prisma.user.findUnique({
+    where: { id: project.ownerId },
+    select: { id: true, email: true, name: true },
+  });
+
+  const memberCollaborators: Collaborator[] = project.members
+    .filter((member) => member.userId !== project.ownerId)
+    .map((member) => ({
+      id: member.user.id,
+      memberId: member.id,
+      email: member.user.email,
+      name: member.user.name,
+      role: member.role as "editor" | "viewer",
+    }));
+
+  const collaborators: Collaborator[] = owner
+    ? [
+        {
+          id: owner.id,
+          memberId: null,
+          email: owner.email,
+          name: owner.name,
+          role: "owner",
+        },
+        ...memberCollaborators,
+      ]
+    : memberCollaborators;
+
+  return {
+    files: project.files as ProjectFile[],
+    collaborators,
+    isOwner: project.ownerId === userId,
+  };
 }
 
 export default async function ProjectPage({
@@ -41,7 +101,17 @@ export default async function ProjectPage({
   if (!session) redirect("/login");
   if (!session.user?.id) redirect("/login");
 
-  const files = await getFiles(projectId, session.user.id);
+  const { files, collaborators, isOwner } = await getProjectData(
+    projectId,
+    session.user.id
+  );
 
-  return <ProjectEditor files={files} projectId={projectId} />;
+  return (
+    <ProjectEditor
+      files={files}
+      projectId={projectId}
+      initialCollaborators={collaborators}
+      canManageRoles={isOwner}
+    />
+  );
 }

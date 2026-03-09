@@ -1,0 +1,2 @@
+﻿src/index.ts(4,35): error TS2307: Cannot find module '@y/websocket-server/utils' or its corresponding type declarations.
+  There are types at 'C:/Users/pradh/Desktop/codesync/package/server/node_modules/@y/websocket-server/dist/src/utils.d.ts', but this result could not be resolved under your current 'moduleResolution' setting. Consider updating to 'node16', 'nodenext', or 'bundler'.

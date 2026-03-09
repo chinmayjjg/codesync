@@ -27,13 +27,17 @@ body {
 
 .remote-cursor {
   border-left: 2px solid red;
+  margin-left: -1px;
 }
 
-.cursor-label {
-  background: #222;
+.cursor-label::after {
+  content: attr(data-user);
+  position: absolute;
+  top: -18px;
+  left: 0;
+  background: #333;
   color: white;
-  font-size: 12px;
-  padding: 2px 5px;
-  margin-left: 4px;
-  border-radius: 4px;
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: 3px;
 }
