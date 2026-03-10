@@ -14,7 +14,8 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { name } = await req.json();
+  const { name, type, parentId } = await req.json();
+  const normalizedType = type === "folder" ? "folder" : "file";
 
   if (!name) {
     return NextResponse.json({ error: "Name required" }, { status: 400 });
@@ -31,10 +32,12 @@ export async function POST(
 
   const file = await prisma.file.create({
     data: {
-      name,
+      name: String(name).trim(),
       content: "",
-      projectId: projectId,
-    },
+      projectId,
+      parentId: parentId || null,
+      type: normalizedType,
+    } as never,
   });
 
   return NextResponse.json(file);

@@ -3,13 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { authOptions } from "../../../lib/auth";
 import { prisma } from "../../../lib/prisma";
 import ProjectEditor from "./ProjectEditor";
-
-type ProjectFile = {
-  id: string;
-  name: string;
-  content: string;
-  projectId: string;
-};
+import type { ProjectFile } from "@/lib/buildFileTree";
 
 type Collaborator = {
   id: string;
@@ -84,8 +78,24 @@ async function getProjectData(projectId: string, userId: string) {
       ]
     : memberCollaborators;
 
+  const normalizedFiles: ProjectFile[] = project.files.map((file) => {
+    const normalizedFile = file as typeof file & {
+      parentId?: string | null;
+      type?: "file" | "folder";
+    };
+
+    return {
+      id: normalizedFile.id,
+      name: normalizedFile.name,
+      content: normalizedFile.content,
+      projectId: normalizedFile.projectId,
+      parentId: normalizedFile.parentId ?? null,
+      type: normalizedFile.type ?? "file",
+    };
+  });
+
   return {
-    files: project.files as ProjectFile[],
+    files: normalizedFiles,
     collaborators,
     isOwner: project.ownerId === userId,
   };

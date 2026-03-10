@@ -3,13 +3,9 @@
 import { useState } from "react";
 import CodeEditor from "./Editor";
 import CreateFile from "./CreateFile";
-
-type ProjectFile = {
-  id: string;
-  name: string;
-  content: string;
-  projectId: string;
-};
+import FileTabs from "@/app/components/FileTabs";
+import FileTree from "@/app/components/FileTree";
+import { buildFileTree, type ProjectFile } from "@/lib/buildFileTree";
 
 type Collaborator = {
   id: string;
@@ -47,9 +43,8 @@ export default function ProjectEditor({
   canManageRoles: boolean;
 }) {
   const [files, setFiles] = useState<ProjectFile[]>(initialFiles);
-  const [selectedFileId, setSelectedFileId] = useState<string | null>(
-    initialFiles[0]?.id || null
-  );
+  const [openFiles, setOpenFiles] = useState<ProjectFile[]>([]);
+  const [activeFileId, setActiveFileId] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"editor" | "viewer">("editor");
   const [inviteState, setInviteState] = useState<string>("");
@@ -60,15 +55,48 @@ export default function ProjectEditor({
     ActiveCollaborator[]
   >([]);
 
-  const selectedFile = files.find((f) => f.id === selectedFileId);
+  const tree = buildFileTree(files);
+  const folders = files.filter((file) => file.type === "folder");
+  const activeFile =
+    openFiles.find((file) => file.id === activeFileId) ?? null;
   const shareLink =
     typeof window === "undefined"
       ? `/projects/${projectId}`
       : `${window.location.origin}/projects/${projectId}`;
 
+  const openFile = (file: ProjectFile) => {
+    if (file.type !== "file") {
+      return;
+    }
+
+    setOpenFiles((prev) => {
+      if (prev.some((openFile) => openFile.id === file.id)) {
+        return prev;
+      }
+
+      return [...prev, file];
+    });
+    setActiveFileId(file.id);
+  };
+
+  const closeFile = (fileId: string) => {
+    setOpenFiles((prev) => {
+      const next = prev.filter((file) => file.id !== fileId);
+
+      if (activeFileId === fileId) {
+        setActiveFileId(next.length > 0 ? next[next.length - 1].id : null);
+      }
+
+      return next;
+    });
+  };
+
   const handleFileCreated = (newFile: ProjectFile) => {
-    setFiles([newFile, ...files]);
-    setSelectedFileId(newFile.id);
+    setFiles((prev) => [newFile, ...prev]);
+
+    if (newFile.type === "file") {
+      openFile(newFile);
+    }
   };
 
   const mergeCollaborator = (member: InviteResponse) => {
@@ -268,8 +296,8 @@ export default function ProjectEditor({
                     {collab.role === "viewer"
                       ? "View"
                       : collab.role === "editor"
-                      ? "Edit"
-                      : "Owner"}
+                        ? "Edit"
+                        : "Owner"}
                   </span>
                 )}
               </div>
@@ -306,53 +334,71 @@ export default function ProjectEditor({
         ))}
       </div>
 
-      <CreateFile projectId={projectId} onFileCreated={handleFileCreated} />
+      <CreateFile
+        projectId={projectId}
+        folders={folders}
+        onFileCreated={handleFileCreated}
+      />
 
-      {files.length === 0 && (
-        <p>No files yet. Create one to open Monaco editor.</p>
-      )}
+      {files.length === 0 && <p>No files yet. Create one to start editing.</p>}
 
       {files.length > 0 && (
         <div
           style={{
             marginTop: "20px",
-            marginBottom: "20px",
-            borderBottom: "1px solid #ccc",
-            paddingBottom: "10px",
+            display: "grid",
+            gridTemplateColumns: "280px 1fr",
+            border: "1px solid #2f2f2f",
+            borderRadius: "8px",
+            overflow: "hidden",
+            minHeight: "560px",
           }}
         >
-          <h3 style={{ marginTop: 0 }}>Files:</h3>
           <div
             style={{
-              display: "flex",
-              gap: "10px",
-              flexWrap: "wrap",
+              background: "#111827",
+              borderRight: "1px solid #2f2f2f",
+              padding: "12px 0",
             }}
           >
-            {files.map((file) => (
-              <button
-                key={file.id}
-                onClick={() => setSelectedFileId(file.id)}
-                style={{
-                  padding: "8px 12px",
-                  backgroundColor:
-                    selectedFileId === file.id ? "#007acc" : "#333",
-                  color: "#fff",
-                  border: "1px solid #555",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  fontWeight: selectedFileId === file.id ? "bold" : "normal",
-                }}
-              >
-                {file.name}
-              </button>
-            ))}
+            <div style={{ padding: "0 12px 10px", color: "#9ca3af" }}>
+              Explorer
+            </div>
+            <FileTree
+              files={tree}
+              activeFileId={activeFileId}
+              onSelect={openFile}
+            />
+          </div>
+
+          <div
+            style={{
+              background: "#0b1220",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <FileTabs
+              openFiles={openFiles}
+              activeFileId={activeFileId}
+              onSelect={setActiveFileId}
+              onClose={closeFile}
+            />
+            <div style={{ flex: 1, padding: activeFile ? 0 : "16px" }}>
+              {activeFile ? (
+                <CodeEditor
+                  key={activeFile.id}
+                  file={activeFile}
+                  onAwarenessChange={setActiveCollaborators}
+                />
+              ) : (
+                <p style={{ margin: 0, color: "#9ca3af" }}>
+                  Select a file from the explorer to open it.
+                </p>
+              )}
+            </div>
           </div>
         </div>
-      )}
-
-      {selectedFile && (
-        <CodeEditor file={selectedFile} onAwarenessChange={setActiveCollaborators} />
       )}
     </div>
   );
