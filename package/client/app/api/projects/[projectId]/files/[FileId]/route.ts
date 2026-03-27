@@ -2,6 +2,7 @@ import { prisma } from "../../../../../../lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../../../../../lib/auth";
 import { NextResponse } from "next/server";
+import { getFileAccess } from "../../../../../../lib/projectAccess";
 
 export async function PUT(
   req: Request,
@@ -16,12 +17,8 @@ export async function PUT(
 
   const { content } = await req.json();
 
-  const file = await prisma.file.findUnique({
-    where: { id: FileId },
-    include: { project: true },
-  });
-
-  if (!file || file.project.ownerId !== session.user.id) {
+  const fileAccess = await getFileAccess(FileId, session.user.id);
+  if (!fileAccess?.access.canWrite) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

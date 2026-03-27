@@ -7,10 +7,12 @@ export default function CreateFile({
   projectId,
   folders,
   onFileCreated,
+  disabled = false,
 }: {
   projectId: string;
   folders: ProjectFile[];
   onFileCreated?: (file: ProjectFile) => void;
+  disabled?: boolean;
 }) {
   const [name, setName] = useState("");
   const [type, setType] = useState<ProjectFileType>("file");
@@ -18,7 +20,7 @@ export default function CreateFile({
   const [isLoading, setIsLoading] = useState(false);
 
   const createFile = async () => {
-    if (!name.trim()) return;
+    if (disabled || !name.trim()) return;
 
     setIsLoading(true);
     try {
@@ -52,13 +54,13 @@ export default function CreateFile({
         placeholder={type === "folder" ? "Folder name" : "File name"}
         value={name}
         onChange={(e) => setName(e.target.value)}
-        disabled={isLoading}
+        disabled={isLoading || disabled}
         style={{ padding: "8px" }}
       />
       <select
         value={type}
         onChange={(e) => setType(e.target.value as ProjectFileType)}
-        disabled={isLoading}
+        disabled={isLoading || disabled}
         style={{ padding: "8px" }}
       >
         <option value="file">File</option>
@@ -67,7 +69,7 @@ export default function CreateFile({
       <select
         value={parentId}
         onChange={(e) => setParentId(e.target.value)}
-        disabled={isLoading}
+        disabled={isLoading || disabled}
         style={{ padding: "8px" }}
       >
         <option value="">Root</option>
@@ -77,7 +79,7 @@ export default function CreateFile({
           </option>
         ))}
       </select>
-      <button onClick={createFile} disabled={isLoading}>
+      <button onClick={createFile} disabled={isLoading || disabled}>
         {isLoading ? "Creating..." : "Create"}
       </button>
     </div>

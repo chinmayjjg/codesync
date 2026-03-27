@@ -57,9 +57,11 @@ type MonacoLike = {
 export default function CodeEditor({
   file,
   onAwarenessChange,
+  readOnly = false,
 }: {
   file: File;
   onAwarenessChange?: (users: ActiveCollaborator[]) => void;
+  readOnly?: boolean;
 }) {
   function handleEditorDidMount(editor: any, monaco: any) {
     const ydoc = new Y.Doc();
@@ -146,6 +148,7 @@ export default function CodeEditor({
       defaultValue={file.content}
       theme="vs-dark"
       onMount={handleEditorDidMount}
+      options={{ readOnly }}
     />
   );
 }

@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { notFound, redirect } from "next/navigation";
 import { authOptions } from "../../../lib/auth";
 import { prisma } from "../../../lib/prisma";
+import { getProjectAccess } from "../../../lib/projectAccess";
 import ProjectEditor from "./ProjectEditor";
 import type { ProjectFile } from "@/lib/buildFileTree";
 
@@ -14,19 +15,14 @@ type Collaborator = {
 };
 
 async function getProjectData(projectId: string, userId: string) {
+  const access = await getProjectAccess(projectId, userId);
+  if (!access?.canRead) {
+    notFound();
+  }
+
   const project = await prisma.project.findFirst({
     where: {
       id: projectId,
-      OR: [
-        { ownerId: userId },
-        {
-          members: {
-            some: {
-              userId,
-            },
-          },
-        },
-      ],
     },
     include: {
       files: {
@@ -97,7 +93,8 @@ async function getProjectData(projectId: string, userId: string) {
   return {
     files: normalizedFiles,
     collaborators,
-    isOwner: project.ownerId === userId,
+    isOwner: access.canManageRoles,
+    canEdit: access.canWrite,
   };
 }
 
@@ -111,7 +108,7 @@ export default async function ProjectPage({
   if (!session) redirect("/login");
   if (!session.user?.id) redirect("/login");
 
-  const { files, collaborators, isOwner } = await getProjectData(
+  const { files, collaborators, isOwner, canEdit } = await getProjectData(
     projectId,
     session.user.id
   );
@@ -122,6 +119,7 @@ export default async function ProjectPage({
       projectId={projectId}
       initialCollaborators={collaborators}
       canManageRoles={isOwner}
+      canEdit={canEdit}
     />
   );
 }

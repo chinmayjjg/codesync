@@ -2,6 +2,7 @@ import { prisma } from "../../../../../lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../../../../lib/auth";
 import { NextResponse } from "next/server";
+import { getProjectAccess } from "../../../../../lib/projectAccess";
 
 export async function POST(
   req: Request,
@@ -21,12 +22,8 @@ export async function POST(
     return NextResponse.json({ error: "Name required" }, { status: 400 });
   }
 
-  // Check ownership
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-  });
-
-  if (!project || project.ownerId !== session.user.id) {
+  const access = await getProjectAccess(projectId, session.user.id);
+  if (!access?.canWrite) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -37,7 +34,7 @@ export async function POST(
       projectId,
       parentId: parentId || null,
       type: normalizedType,
-    } as never,
+    },
   });
 
   return NextResponse.json(file);
@@ -54,11 +51,8 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-  });
-
-  if (!project || project.ownerId !== session.user.id) {
+  const access = await getProjectAccess(projectId, session.user.id);
+  if (!access?.canRead) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

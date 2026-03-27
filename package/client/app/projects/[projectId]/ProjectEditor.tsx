@@ -36,11 +36,13 @@ export default function ProjectEditor({
   projectId,
   initialCollaborators,
   canManageRoles,
+  canEdit,
 }: {
   files: ProjectFile[];
   projectId: string;
   initialCollaborators: Collaborator[];
   canManageRoles: boolean;
+  canEdit: boolean;
 }) {
   const [files, setFiles] = useState<ProjectFile[]>(initialFiles);
   const [openFiles, setOpenFiles] = useState<ProjectFile[]>([]);
@@ -338,7 +340,14 @@ export default function ProjectEditor({
         projectId={projectId}
         folders={folders}
         onFileCreated={handleFileCreated}
+        disabled={!canEdit}
       />
+
+      {!canEdit && (
+        <p style={{ marginTop: "12px", color: "#6b7280" }}>
+          You have view-only access to this project.
+        </p>
+      )}
 
       {files.length === 0 && <p>No files yet. Create one to start editing.</p>}
 
@@ -390,6 +399,7 @@ export default function ProjectEditor({
                   key={activeFile.id}
                   file={activeFile}
                   onAwarenessChange={setActiveCollaborators}
+                  readOnly={!canEdit}
                 />
               ) : (
                 <p style={{ margin: 0, color: "#9ca3af" }}>
