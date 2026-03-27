@@ -59,17 +59,22 @@ export default function CodeEditor({
   onAwarenessChange,
   onContentChange,
   readOnly = false,
+  wsToken,
 }: {
   file: File;
   onAwarenessChange?: (users: ActiveCollaborator[]) => void;
   onContentChange?: (content: string) => void;
   readOnly?: boolean;
+  wsToken?: string;
 }) {
   function handleEditorDidMount(editor: any, monaco: any) {
     const ydoc = new Y.Doc();
 
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080";
+    // Append token as query parameter for authentication
+    const fullWsUrl = wsToken ? `${wsUrl}/${file.id}?token=${encodeURIComponent(wsToken)}` : `${wsUrl}/${file.id}`;
     const provider = new WebsocketProvider(
-      "ws://localhost:1234",
+      fullWsUrl,
       file.id,
       ydoc
     );

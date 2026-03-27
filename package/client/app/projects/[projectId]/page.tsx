@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { authOptions } from "../../../lib/auth";
 import { prisma } from "../../../lib/prisma";
 import { getProjectAccess } from "../../../lib/projectAccess";
+import { createWebSocketToken } from "../../../lib/jwt";
 import ProjectEditor from "./ProjectEditor";
 import type { ProjectFile } from "@/lib/buildFileTree";
 
@@ -113,6 +114,9 @@ export default async function ProjectPage({
     session.user.id
   );
 
+  // Generate WebSocket authentication token
+  const wsToken = createWebSocketToken(session.user.id);
+
   return (
     <ProjectEditor
       files={files}
@@ -120,6 +124,7 @@ export default async function ProjectPage({
       initialCollaborators={collaborators}
       canManageRoles={isOwner}
       canEdit={canEdit}
+      wsToken={wsToken}
     />
   );
 }

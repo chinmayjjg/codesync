@@ -37,12 +37,14 @@ export default function ProjectEditor({
   initialCollaborators,
   canManageRoles,
   canEdit,
+  wsToken,
 }: {
   files: ProjectFile[];
   projectId: string;
   initialCollaborators: Collaborator[];
   canManageRoles: boolean;
   canEdit: boolean;
+  wsToken?: string;
 }) {
   const [files, setFiles] = useState<ProjectFile[]>(initialFiles);
   const [openFiles, setOpenFiles] = useState<ProjectFile[]>([]);
@@ -476,6 +478,7 @@ export default function ProjectEditor({
                     handleFileContentChange(activeFile.id, content)
                   }
                   readOnly={!canEdit}
+                  wsToken={wsToken}
                 />
               ) : (
                 <p style={{ margin: 0, color: "#9ca3af" }}>
