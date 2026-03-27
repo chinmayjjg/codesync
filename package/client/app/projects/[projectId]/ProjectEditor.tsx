@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CodeEditor from "./Editor";
 import CreateFile from "./CreateFile";
 import FileTabs from "@/app/components/FileTabs";
@@ -56,6 +56,8 @@ export default function ProjectEditor({
   const [activeCollaborators, setActiveCollaborators] = useState<
     ActiveCollaborator[]
   >([]);
+  const [saveState, setSaveState] = useState<string>("");
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const tree = buildFileTree(files);
   const folders = files.filter((file) => file.type === "folder");
@@ -180,6 +182,66 @@ export default function ProjectEditor({
   const handleCopyShareLink = async () => {
     await navigator.clipboard.writeText(shareLink);
     setInviteState("Project link copied");
+  };
+
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    setSaveState(activeFileId ? "Ready" : "");
+  }, [activeFileId]);
+
+  const updateFileContentState = (fileId: string, content: string) => {
+    setFiles((prev) =>
+      prev.map((file) => (file.id === fileId ? { ...file, content } : file))
+    );
+    setOpenFiles((prev) =>
+      prev.map((file) => (file.id === fileId ? { ...file, content } : file))
+    );
+  };
+
+  const saveFileContent = async (fileId: string, content: string) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/files/${fileId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(body.error || "Failed to save file");
+      }
+
+      setSaveState("Saved");
+    } catch (error) {
+      console.error("Failed to save file:", error);
+      setSaveState("Save failed");
+    }
+  };
+
+  const handleFileContentChange = (fileId: string, content: string) => {
+    updateFileContentState(fileId, content);
+
+    if (!canEdit) {
+      return;
+    }
+
+    setSaveState("Saving...");
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      void saveFileContent(fileId, content);
+    }, 600);
   };
 
   return (
@@ -393,12 +455,26 @@ export default function ProjectEditor({
               onSelect={setActiveFileId}
               onClose={closeFile}
             />
+            <div
+              style={{
+                minHeight: "32px",
+                padding: "8px 12px",
+                borderBottom: "1px solid #1f2937",
+                color: "#9ca3af",
+                fontSize: "14px",
+              }}
+            >
+              {activeFile ? saveState || "Ready" : "No file selected"}
+            </div>
             <div style={{ flex: 1, padding: activeFile ? 0 : "16px" }}>
               {activeFile ? (
                 <CodeEditor
                   key={activeFile.id}
                   file={activeFile}
                   onAwarenessChange={setActiveCollaborators}
+                  onContentChange={(content) =>
+                    handleFileContentChange(activeFile.id, content)
+                  }
                   readOnly={!canEdit}
                 />
               ) : (

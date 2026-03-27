@@ -57,10 +57,12 @@ type MonacoLike = {
 export default function CodeEditor({
   file,
   onAwarenessChange,
+  onContentChange,
   readOnly = false,
 }: {
   file: File;
   onAwarenessChange?: (users: ActiveCollaborator[]) => void;
+  onContentChange?: (content: string) => void;
   readOnly?: boolean;
 }) {
   function handleEditorDidMount(editor: any, monaco: any) {
@@ -94,6 +96,11 @@ export default function CodeEditor({
       provider.awareness.setLocalStateField("cursor", {
         position: event.position,
       });
+    });
+
+    editor.onDidChangeModelContent(() => {
+      const content = editor.getValue();
+      onContentChange?.(content);
     });
 
     // Listen to other users
