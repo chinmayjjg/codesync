@@ -1,7 +1,8 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../../../../../lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../../../../../lib/auth";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getFileAccess } from "../../../../../../lib/projectAccess";
 import { getCurrentUserRecord } from "../../../../../../lib/currentUser";
 import { checkRateLimit } from "../../../../../../lib/rateLimit";
@@ -13,7 +14,7 @@ import {
 } from "../../../../../../lib/validation";
 
 export async function PUT(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ projectId: string; FileId: string }> }
 ) {
   const { projectId, FileId } = await params;
@@ -67,23 +68,37 @@ export async function PUT(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const file = await prisma.file.findUnique({
+  const fileSelect = {
+    id: true,
+    projectId: true,
+    parentId: true,
+    type: true,
+  } as Prisma.FileSelect;
+
+  const file = (await prisma.file.findUnique({
     where: { id: FileId },
-    select: { id: true, projectId: true, parentId: true, type: true },
-  });
+    select: fileSelect,
+  })) as {
+    id: string;
+    projectId: string;
+    parentId: string | null;
+    type: string;
+  } | null;
 
   if (!file || file.projectId !== projectId) {
     return NextResponse.json({ error: "File not found" }, { status: 404 });
   }
 
   if (updates.name) {
+    const siblingWhereInput: Record<string, unknown> = {
+      projectId,
+      parentId: file.parentId,
+      name: updates.name,
+      id: { not: FileId },
+    };
+
     const existingSibling = await prisma.file.findFirst({
-      where: {
-        projectId,
-        parentId: file.parentId,
-        name: updates.name,
-        id: { not: FileId },
-      },
+      where: siblingWhereInput as Prisma.FileWhereInput,
       select: { id: true },
     });
 
@@ -95,16 +110,18 @@ export async function PUT(
     }
   }
 
+  const updateData = updates as Prisma.FileUpdateInput;
+
   const updatedFile = await prisma.file.update({
     where: { id: FileId },
-    data: updates,
+    data: updateData,
   });
 
   return NextResponse.json(updatedFile);
 }
 
 export async function DELETE(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ projectId: string; FileId: string }> }
 ) {
   const { projectId, FileId } = await params;
@@ -148,7 +165,7 @@ export async function DELETE(
     // Recursively find and delete all files in this folder and subfolders
     const deleteRecursively = async (parentId: string) => {
       const children = await prisma.file.findMany({
-        where: { parentId: parentId },
+        where: { parentId } as Prisma.FileWhereInput,
       });
       for (const child of children) {
         await deleteRecursively(child.id);

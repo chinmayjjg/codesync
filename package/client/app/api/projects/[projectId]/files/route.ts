@@ -1,7 +1,8 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../../../../lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../../../../lib/auth";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getProjectAccess } from "../../../../../lib/projectAccess";
 import { getCurrentUserRecord } from "../../../../../lib/currentUser";
 import { checkRateLimit } from "../../../../../lib/rateLimit";
@@ -12,7 +13,7 @@ import {
 } from "../../../../../lib/validation";
 
 export async function POST(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
   const { projectId } = await params;
@@ -60,12 +61,14 @@ export async function POST(
   }
 
   if (parentId) {
+    const parentWhere = {
+      id: parentId,
+      projectId,
+      type: "folder",
+    } as Prisma.FileWhereInput;
+
     const parent = await prisma.file.findFirst({
-      where: {
-        id: parentId,
-        projectId,
-        type: "folder",
-      },
+      where: parentWhere,
       select: { id: true },
     });
 
@@ -77,12 +80,14 @@ export async function POST(
     }
   }
 
+  const siblingWhere = {
+    projectId,
+    parentId,
+    name,
+  } as Prisma.FileWhereInput;
+
   const existingSibling = await prisma.file.findFirst({
-    where: {
-      projectId,
-      parentId,
-      name,
-    },
+    where: siblingWhere,
     select: { id: true },
   });
 
@@ -93,21 +98,23 @@ export async function POST(
     );
   }
 
+  const fileData = {
+    name,
+    content: "",
+    projectId,
+    parentId,
+    type: normalizedType,
+  } as Prisma.FileUncheckedCreateInput;
+
   const file = await prisma.file.create({
-    data: {
-      name,
-      content: "",
-      projectId,
-      parentId,
-      type: normalizedType,
-    },
+    data: fileData,
   });
 
   return NextResponse.json(file);
 }
 
 export async function GET(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
   const { projectId } = await params;

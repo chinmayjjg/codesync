@@ -5,7 +5,6 @@ import Editor from "@monaco-editor/react";
 import type { editor as MonacoEditorApi } from "monaco-editor";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
-import { MonacoBinding } from "y-monaco";
 
 type File = {
   id: string;
@@ -63,10 +62,11 @@ export default function CodeEditor({
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cursorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function handleEditorDidMount(
+  async function handleEditorDidMount(
     editor: MonacoEditorApi.IStandaloneCodeEditor,
     monaco: typeof import("monaco-editor")
   ) {
+    const { MonacoBinding } = await import("y-monaco");
     const ydoc = new Y.Doc();
     let decorationIds: string[] = [];
 
