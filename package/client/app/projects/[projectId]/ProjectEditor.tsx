@@ -5,21 +5,18 @@ import CodeEditor from "./Editor";
 import CreateFile from "./CreateFile";
 import FileTabs from "@/app/components/FileTabs";
 import FileTree from "@/app/components/FileTree";
-import { buildFileTree, type ProjectFile } from "@/lib/buildFileTree";
-import type { Collaborator } from "@/lib/projectCollaborators";
-
-type ActiveCollaborator = {
-  clientId: number;
-  name: string;
-  color: string;
-  email?: string;
-  isTyping: boolean;
-  isOnline: boolean;
-};
+import { buildFileTree } from "@/lib/buildFileTree";
+import type {
+  ActiveCollaborator,
+  Collaborator,
+  ProjectFile,
+  ProjectRole,
+  RealtimeConnectionStatus,
+} from "@codesync/shared";
 
 type InviteResponse = {
   id: string;
-  role: "editor" | "viewer";
+  role: Exclude<ProjectRole, "owner">;
   user: {
     id: string;
     email: string;
@@ -60,9 +57,8 @@ export default function ProjectEditor({
   const [activeCollaborators, setActiveCollaborators] = useState<
     ActiveCollaborator[]
   >([]);
-  const [connectionState, setConnectionState] = useState<
-    "connected" | "connecting" | "disconnected"
-  >("connecting");
+  const [connectionState, setConnectionState] =
+    useState<RealtimeConnectionStatus>("connecting");
   const [saveState, setSaveState] = useState<string>("");
   const [treeMessage, setTreeMessage] = useState<string>("");
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -149,7 +145,10 @@ export default function ProjectEditor({
     }
   };
 
-  const inviteOrUpdate = async (email: string, role: "editor" | "viewer") => {
+  const inviteOrUpdate = async (
+    email: string,
+    role: Exclude<ProjectRole, "owner">
+  ) => {
     setIsSubmitting(true);
     setInviteState("");
     try {
@@ -195,7 +194,7 @@ export default function ProjectEditor({
 
   const handleRoleChange = async (
     email: string,
-    role: "editor" | "viewer"
+    role: Exclude<ProjectRole, "owner">
   ) => {
     await inviteOrUpdate(email, role);
   };

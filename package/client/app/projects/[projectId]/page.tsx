@@ -6,7 +6,7 @@ import { getProjectAccess } from "../../../lib/projectAccess";
 import { getProjectCollaborators } from "../../../lib/projectCollaborators";
 import { createWebSocketToken } from "../../../lib/jwt";
 import ProjectEditor from "./ProjectEditor";
-import type { ProjectFile } from "@/lib/buildFileTree";
+import type { ProjectFile } from "@codesync/shared";
 
 async function getProjectData(projectId: string, userId: string) {
   const access = await getProjectAccess(projectId, userId);

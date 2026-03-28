@@ -1,7 +1,6 @@
 import { prisma } from "./prisma";
 import { isValidObjectId } from "./validation";
-
-export type ProjectRole = "owner" | "editor" | "viewer";
+import type { ProjectRole } from "@codesync/shared";
 
 export type ProjectAccess = {
   projectId: string;

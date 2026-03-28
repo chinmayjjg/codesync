@@ -1,17 +1,6 @@
-export type ProjectFileType = "file" | "folder";
+import type { FileTreeNode, ProjectFile } from "@codesync/shared";
 
-export type ProjectFile = {
-  id: string;
-  name: string;
-  content: string;
-  projectId: string;
-  parentId: string | null;
-  type: ProjectFileType;
-};
-
-export type FileTreeNode = ProjectFile & {
-  children: FileTreeNode[];
-};
+export type { FileTreeNode, ProjectFile, ProjectFileType } from "@codesync/shared";
 
 function sortNodes(nodes: FileTreeNode[]) {
   nodes.sort((left, right) => {

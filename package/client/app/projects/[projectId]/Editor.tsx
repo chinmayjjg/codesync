@@ -6,37 +6,12 @@ import type { editor as MonacoEditorApi } from "monaco-editor";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { clientEnv } from "@/lib/env.client";
-
-type File = {
-  id: string;
-  content: string;
-};
-
-type ActiveCollaborator = {
-  clientId: number;
-  name: string;
-  color: string;
-  email?: string;
-  isTyping: boolean;
-  isOnline: boolean;
-};
-
-type CursorState = {
-  position: {
-    lineNumber: number;
-    column: number;
-  };
-};
-
-type AwarenessState = {
-  user?: {
-    name?: string;
-    color?: string;
-    email?: string;
-  };
-  cursor?: CursorState;
-  typing?: boolean;
-};
+import type {
+  ActiveCollaborator,
+  AwarenessState,
+  ProjectFile,
+  RealtimeConnectionStatus,
+} from "@codesync/shared";
 
 export default function CodeEditor({
   file,
@@ -47,9 +22,9 @@ export default function CodeEditor({
   wsToken,
   currentUser,
 }: {
-  file: File;
+  file: Pick<ProjectFile, "id" | "content">;
   onAwarenessChange?: (users: ActiveCollaborator[]) => void;
-  onConnectionStatusChange?: (status: "connected" | "connecting" | "disconnected") => void;
+  onConnectionStatusChange?: (status: RealtimeConnectionStatus) => void;
   onContentChange?: (content: string) => void;
   readOnly?: boolean;
   wsToken?: string;
@@ -115,7 +90,7 @@ export default function CodeEditor({
       }, 40);
     });
 
-    provider.on("status", (event: { status: "connected" | "connecting" | "disconnected" }) => {
+    provider.on("status", (event: { status: RealtimeConnectionStatus }) => {
       onConnectionStatusChange?.(event.status);
     });
 

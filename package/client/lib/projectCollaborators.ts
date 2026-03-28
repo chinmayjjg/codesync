@@ -1,12 +1,7 @@
 import { prisma } from "./prisma";
+import type { Collaborator } from "@codesync/shared";
 
-export type Collaborator = {
-  id: string;
-  memberId: string | null;
-  email: string;
-  name: string | null;
-  role: "owner" | "editor" | "viewer";
-};
+export type { Collaborator } from "@codesync/shared";
 
 export async function getProjectCollaborators(projectId: string) {
   const project = await prisma.project.findUnique({
