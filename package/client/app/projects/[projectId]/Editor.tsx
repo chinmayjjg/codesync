@@ -78,7 +78,8 @@ export default function CodeEditor({
     provider.awareness.setLocalStateField("typing", false);
 
     // Cursor tracking
-    editor.onDidChangeCursorPosition((event: any) => {
+    editor.onDidChangeCursorPosition(
+      (event: MonacoEditorApi.ICursorPositionChangedEvent) => {
       if (cursorTimeoutRef.current) {
         clearTimeout(cursorTimeoutRef.current);
       }
@@ -88,7 +89,8 @@ export default function CodeEditor({
           position: event.position,
         });
       }, 40);
-    });
+      }
+    );
 
     provider.on("status", (event: { status: RealtimeConnectionStatus }) => {
       onConnectionStatusChange?.(event.status);

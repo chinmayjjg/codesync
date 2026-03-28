@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import CodeEditor from "./Editor";
 import CreateFile from "./CreateFile";
 import FileTabs from "@/app/components/FileTabs";
@@ -97,7 +97,7 @@ export default function ProjectEditor({
     setTreeMessage("");
   };
 
-  const closeFile = (fileId: string) => {
+  const closeFile = useCallback((fileId: string) => {
     setOpenFiles((prev) => {
       const next = prev.filter((file) => file.id !== fileId);
 
@@ -107,7 +107,7 @@ export default function ProjectEditor({
 
       return next;
     });
-  };
+  }, [activeFileId]);
 
   const handleFileCreated = (newFile: ProjectFile) => {
     setFiles((prev) => [newFile, ...prev]);
@@ -247,6 +247,86 @@ export default function ProjectEditor({
     window.localStorage.setItem(activeFileStorageKey, activeFileId);
   }, [activeFileId, activeFileStorageKey]);
 
+  const updateFileContentState = (fileId: string, content: string) => {
+    setFiles((prev) =>
+      prev.map((file) => (file.id === fileId ? { ...file, content } : file))
+    );
+    setOpenFiles((prev) =>
+      prev.map((file) => (file.id === fileId ? { ...file, content } : file))
+    );
+  };
+
+  const refreshHistory = useCallback(async (fileId: string) => {
+    setHistoryLoading(true);
+    setHistoryState("");
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/files/${fileId}/history`
+      );
+      const body = (await response.json().catch(() => [])) as
+        | FileVersionEntry[]
+        | { error?: string };
+
+      if (!response.ok || !Array.isArray(body)) {
+        throw new Error(
+          Array.isArray(body)
+            ? "Failed to load history"
+            : body.error || "Failed to load history"
+        );
+      }
+
+      setHistoryEntries(body);
+    } catch (error) {
+      console.error("Failed to load history:", error);
+      setHistoryEntries([]);
+      setHistoryState(
+        error instanceof Error ? error.message : "Failed to load history"
+      );
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [projectId]);
+
+  const saveFileContent = useCallback(async (fileId: string, content: string) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/files/${fileId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(body.error || "Failed to save file");
+      }
+
+      setSaveState("Saved");
+      void refreshHistory(fileId);
+    } catch (error) {
+      console.error("Failed to save file:", error);
+      setSaveState("Save failed");
+    }
+  }, [projectId, refreshHistory]);
+
+  const handleFileContentChange = (fileId: string, content: string) => {
+    updateFileContentState(fileId, content);
+
+    if (!canEdit) {
+      return;
+    }
+
+    setSaveState("Saving...");
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      void saveFileContent(fileId, content);
+    }, 600);
+  };
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const isModifierPressed = event.metaKey || event.ctrlKey;
@@ -278,87 +358,7 @@ export default function ProjectEditor({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeFile, activeFileId]);
-
-  const updateFileContentState = (fileId: string, content: string) => {
-    setFiles((prev) =>
-      prev.map((file) => (file.id === fileId ? { ...file, content } : file))
-    );
-    setOpenFiles((prev) =>
-      prev.map((file) => (file.id === fileId ? { ...file, content } : file))
-    );
-  };
-
-  const refreshHistory = async (fileId: string) => {
-    setHistoryLoading(true);
-    setHistoryState("");
-    try {
-      const response = await fetch(
-        `/api/projects/${projectId}/files/${fileId}/history`
-      );
-      const body = (await response.json().catch(() => [])) as
-        | FileVersionEntry[]
-        | { error?: string };
-
-      if (!response.ok || !Array.isArray(body)) {
-        throw new Error(
-          Array.isArray(body)
-            ? "Failed to load history"
-            : body.error || "Failed to load history"
-        );
-      }
-
-      setHistoryEntries(body);
-    } catch (error) {
-      console.error("Failed to load history:", error);
-      setHistoryEntries([]);
-      setHistoryState(
-        error instanceof Error ? error.message : "Failed to load history"
-      );
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
-
-  const saveFileContent = async (fileId: string, content: string) => {
-    try {
-      const response = await fetch(`/api/projects/${projectId}/files/${fileId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
-      });
-
-      if (!response.ok) {
-        const body = (await response.json().catch(() => ({}))) as {
-          error?: string;
-        };
-        throw new Error(body.error || "Failed to save file");
-      }
-
-      setSaveState("Saved");
-      void refreshHistory(fileId);
-    } catch (error) {
-      console.error("Failed to save file:", error);
-      setSaveState("Save failed");
-    }
-  };
-
-  const handleFileContentChange = (fileId: string, content: string) => {
-    updateFileContentState(fileId, content);
-
-    if (!canEdit) {
-      return;
-    }
-
-    setSaveState("Saving...");
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    saveTimeoutRef.current = setTimeout(() => {
-      void saveFileContent(fileId, content);
-    }, 600);
-  };
+  }, [activeFile, activeFileId, closeFile, saveFileContent]);
 
   const handleRestoreVersion = async (versionId: string) => {
     if (!activeFileId || !canEdit) {
@@ -412,7 +412,7 @@ export default function ProjectEditor({
     }
 
     void refreshHistory(activeFileId);
-  }, [activeFileId]);
+  }, [activeFileId, refreshHistory]);
 
   const handleRenameFile = async (file: ProjectFile) => {
     if (!canEdit) {
