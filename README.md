@@ -50,12 +50,14 @@ Create a `.env` file in `package/client`:
 DATABASE_URL="mongodb://localhost:27017/codesync"
 NEXTAUTH_SECRET="replace-with-a-long-random-secret"
 NEXTAUTH_URL="http://localhost:3000"
+NEXT_PUBLIC_WS_URL="ws://localhost:8080"
 ```
 
 You can also create a `.env` file in `package/server` to configure the websocket server port:
 
 ```env
-PORT=1234
+PORT=8080
+NEXTAUTH_SECRET="replace-with-the-same-secret-used-by-the-client"
 ```
 
 ## Install
@@ -99,7 +101,7 @@ npm run dev
 Default local URLs:
 
 - App: `http://localhost:3000`
-- Realtime websocket server: `ws://localhost:1234`
+- Realtime websocket server: `ws://localhost:8080`
 
 ## How It Works
 
@@ -136,7 +138,6 @@ Editor content is also saved through the app API so file contents remain availab
 
 ## Current Limitations
 
-- The websocket server URL is still hard-coded in the client for local development
 - The root landing page is still the default Next.js starter page
 - The UI is functional but still prototype-level
 - There are no automated tests yet
@@ -144,7 +145,6 @@ Editor content is also saved through the app API so file contents remain availab
 
 ## Suggested Next Improvements
 
-- Move the websocket server URL into environment configuration
 - Add a real landing page and onboarding flow
 - Add stronger persistence/versioning behavior for collaborative edits
 - Add test coverage for auth, permissions, and file APIs

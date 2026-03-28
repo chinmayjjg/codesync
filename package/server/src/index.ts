@@ -5,13 +5,11 @@ import { parse } from "url";
 import jwt from "jsonwebtoken";
 // @ts-expect-error - moduleResolution setting prevents loading these types
 import { setupWSConnection } from "@y/websocket-server/utils";
+import { serverConfig } from "./config";
 
-const PORT = Number(process.env.PORT) || 8080;
-const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret-change-me";
+const wss = new WebSocketServer({ port: serverConfig.PORT });
 
-const wss = new WebSocketServer({ port: PORT });
-
-console.log(`WebSocket Server (Yjs) running on port ${PORT}`);
+console.log(`WebSocket Server (Yjs) running on port ${serverConfig.PORT}`);
 
 interface AuthenticatedWebSocket extends WebSocket {
   userId?: string;
@@ -31,7 +29,10 @@ wss.on("connection", (ws: AuthenticatedWebSocket, req: IncomingMessage) => {
 
   try {
     // Verify JWT token
-    const decoded = jwt.verify(token, JWT_SECRET) as { id?: string; userId?: string };
+    const decoded = jwt.verify(token, serverConfig.NEXTAUTH_SECRET) as {
+      id?: string;
+      userId?: string;
+    };
     const userId = decoded.id || decoded.userId;
 
     if (!userId) {

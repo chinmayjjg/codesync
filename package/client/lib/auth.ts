@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "./prisma";
 import bcrypt from "bcrypt";
 import { normalizeEmail } from "./validation";
+import { serverEnv } from "./env.server";
 
 export const authOptions: NextAuthOptions = {
     providers: [
@@ -67,5 +68,5 @@ export const authOptions: NextAuthOptions = {
             return session;
         },
     },
-    secret: process.env.NEXTAUTH_SECRET,
+    secret: serverEnv.NEXTAUTH_SECRET,
 };

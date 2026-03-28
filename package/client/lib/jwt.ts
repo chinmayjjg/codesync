@@ -1,12 +1,14 @@
 import jwt from "jsonwebtoken";
+import { serverEnv } from "./env.server";
 
 /**
  * Creates a JWT token for WebSocket authentication.
  * Uses the same secret as NextAuth for consistency.
  */
 export function createWebSocketToken(userId: string): string {
-  const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || "fallback-secret";
-  return jwt.sign({ id: userId }, secret, { expiresIn: "24h" });
+  return jwt.sign({ id: userId }, serverEnv.NEXTAUTH_SECRET, {
+    expiresIn: "24h",
+  });
 }
 
 /**
@@ -14,8 +16,10 @@ export function createWebSocketToken(userId: string): string {
  */
 export function verifyWebSocketToken(token: string): string | null {
   try {
-    const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || "fallback-secret";
-    const decoded = jwt.verify(token, secret) as { id?: string; userId?: string };
+    const decoded = jwt.verify(token, serverEnv.NEXTAUTH_SECRET) as {
+      id?: string;
+      userId?: string;
+    };
     return decoded.id || decoded.userId || null;
   } catch {
     return null;
