@@ -1,12 +1,14 @@
 {
-  "name": "server",
+  "name": "@codesync/server",
   "version": "1.0.0",
-  "description": "",
+  "description": "CodeSync Yjs websocket server",
   "type": "module",
   "main": "index.js",
   "scripts": {
     "dev": "ts-node src/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "echo \"No tests yet\""
   },
   "keywords": [],
   "author": "",

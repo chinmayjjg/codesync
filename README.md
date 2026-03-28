@@ -19,6 +19,7 @@ It combines:
 ## Repo Structure
 
 ```text
+package.json  Root workspace scripts
 package/
   client/   Next.js app, Prisma schema, API routes, editor UI
   server/   Yjs websocket server
@@ -62,13 +63,9 @@ NEXTAUTH_SECRET="replace-with-the-same-secret-used-by-the-client"
 
 ## Install
 
-Install dependencies in each runtime package:
+Install dependencies from the repo root:
 
 ```bash
-cd package/client
-npm install
-
-cd ../server
 npm install
 ```
 
@@ -84,18 +81,20 @@ If you are starting from a fresh database, apply the Prisma workflow you want fo
 
 ## Run Locally
 
-Start the Next.js client:
+Start the full workspace from the repo root:
 
 ```bash
-cd package/client
 npm run dev
 ```
 
-Start the Yjs websocket server in a second terminal:
+Useful root scripts:
 
 ```bash
-cd package/server
-npm run dev
+npm run dev:client
+npm run dev:server
+npm run build
+npm run lint
+npm run typecheck
 ```
 
 Default local URLs:
