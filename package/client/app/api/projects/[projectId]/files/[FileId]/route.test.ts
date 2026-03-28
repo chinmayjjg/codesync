@@ -5,20 +5,20 @@ const {
   getCurrentUserRecord,
   checkRateLimit,
   getFileAccess,
+  deleteProjectFileTree,
   fileFindUnique,
   fileFindFirst,
   fileUpdate,
-  fileFindMany,
   fileDelete,
 } = vi.hoisted(() => ({
   getServerSession: vi.fn(),
   getCurrentUserRecord: vi.fn(),
   checkRateLimit: vi.fn(),
   getFileAccess: vi.fn(),
+  deleteProjectFileTree: vi.fn(),
   fileFindUnique: vi.fn(),
   fileFindFirst: vi.fn(),
   fileUpdate: vi.fn(),
-  fileFindMany: vi.fn(),
   fileDelete: vi.fn(),
 }));
 
@@ -38,13 +38,16 @@ vi.mock("../../../../../../lib/projectAccess", () => ({
   getFileAccess,
 }));
 
+vi.mock("../../../../../../lib/fileOperations", () => ({
+  deleteProjectFileTree,
+}));
+
 vi.mock("../../../../../../lib/prisma", () => ({
   prisma: {
     file: {
       findUnique: fileFindUnique,
       findFirst: fileFindFirst,
       update: fileUpdate,
-      findMany: fileFindMany,
       delete: fileDelete,
     },
   },
@@ -54,8 +57,6 @@ import { DELETE, PUT } from "./route";
 
 const projectId = "507f1f77bcf86cd799439011";
 const fileId = "507f1f77bcf86cd799439012";
-const childFolderId = "507f1f77bcf86cd799439013";
-const childFileId = "507f1f77bcf86cd799439014";
 const editorId = "507f1f77bcf86cd799439015";
 
 describe("project file detail route", () => {
@@ -148,13 +149,6 @@ describe("project file detail route", () => {
       projectId,
       type: "folder",
     });
-    fileFindMany
-      .mockResolvedValueOnce([
-        { id: childFolderId, parentId: fileId },
-        { id: childFileId, parentId: fileId },
-      ])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
 
     const request = new Request("http://localhost/api/projects/x/files/y", {
       method: "DELETE",
@@ -165,14 +159,7 @@ describe("project file detail route", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(fileDelete).toHaveBeenNthCalledWith(1, {
-      where: { id: childFolderId },
-    });
-    expect(fileDelete).toHaveBeenNthCalledWith(2, {
-      where: { id: childFileId },
-    });
-    expect(fileDelete).toHaveBeenNthCalledWith(3, {
-      where: { id: fileId },
-    });
+    expect(deleteProjectFileTree).toHaveBeenCalledWith(projectId, fileId);
+    expect(fileDelete).not.toHaveBeenCalled();
   });
 });

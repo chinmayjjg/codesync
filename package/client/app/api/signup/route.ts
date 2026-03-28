@@ -9,7 +9,7 @@ import {
 } from "../../../lib/validation";
 
 export async function POST(req: Request) {
-  const rateLimit = checkRateLimit(req, "signup", 10, 60_000);
+  const rateLimit = await checkRateLimit(req, "signup", 10, 60_000);
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many signup attempts" },

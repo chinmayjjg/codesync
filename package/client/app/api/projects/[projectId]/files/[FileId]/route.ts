@@ -3,6 +3,7 @@ import { prisma } from "../../../../../../lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../../../../../lib/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { deleteProjectFileTree } from "../../../../../../lib/fileOperations";
 import { getFileAccess } from "../../../../../../lib/projectAccess";
 import { getCurrentUserRecord } from "../../../../../../lib/currentUser";
 import { checkRateLimit } from "../../../../../../lib/rateLimit";
@@ -22,7 +23,7 @@ export async function PUT(
     return NextResponse.json({ error: "Invalid resource id" }, { status: 400 });
   }
 
-  const rateLimit = checkRateLimit(req, "update-file", 120, 60_000);
+  const rateLimit = await checkRateLimit(req, "update-file", 120, 60_000);
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many file updates" },
@@ -129,7 +130,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Invalid resource id" }, { status: 400 });
   }
 
-  const rateLimit = checkRateLimit(req, "delete-file", 40, 60_000);
+  const rateLimit = await checkRateLimit(req, "delete-file", 40, 60_000);
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many delete attempts" },
@@ -162,17 +163,7 @@ export async function DELETE(
   const fileType = (file as unknown as { type: string }).type;
 
   if (fileType === "folder") {
-    // Recursively find and delete all files in this folder and subfolders
-    const deleteRecursively = async (parentId: string) => {
-      const children = await prisma.file.findMany({
-        where: { parentId } as Prisma.FileWhereInput,
-      });
-      for (const child of children) {
-        await deleteRecursively(child.id);
-      }
-      await prisma.file.delete({ where: { id: parentId } });
-    };
-    await deleteRecursively(FileId);
+    await deleteProjectFileTree(projectId, FileId);
   } else {
     await prisma.file.delete({ where: { id: FileId } });
   }

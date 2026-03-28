@@ -19,7 +19,7 @@ export async function POST(
     return NextResponse.json({ error: "Invalid project id" }, { status: 400 });
   }
 
-  const rateLimit = checkRateLimit(req, "project-invite", 30, 60_000);
+  const rateLimit = await checkRateLimit(req, "project-invite", 30, 60_000);
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many invite attempts" },

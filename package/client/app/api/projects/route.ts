@@ -31,7 +31,7 @@ export async function GET() {
 
 // POST /api/projects – create a new project for the logged-in user
 export async function POST(req: Request) {
-  const rateLimit = checkRateLimit(req, "create-project", 20, 60_000);
+  const rateLimit = await checkRateLimit(req, "create-project", 20, 60_000);
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many project creation attempts" },

@@ -52,6 +52,8 @@ DATABASE_URL="mongodb://localhost:27017/codesync"
 NEXTAUTH_SECRET="replace-with-a-long-random-secret"
 NEXTAUTH_URL="http://localhost:3000"
 NEXT_PUBLIC_WS_URL="ws://localhost:8080"
+UPSTASH_REDIS_REST_URL=""
+UPSTASH_REDIS_REST_TOKEN=""
 ```
 
 You can also create a `.env` file in `package/server` to configure the websocket server port:
@@ -123,6 +125,10 @@ Each file is edited in a Yjs room keyed by the file id. Monaco is bound to the s
 ### Persistence
 
 Editor content is also saved through the app API so file contents remain available after refresh or reconnect.
+
+### Rate Limiting
+
+API routes use a store-backed rate limiter. For local development it falls back to in-memory limits. For distributed deployments, configure Upstash Redis in `package/client/.env`.
 
 ## Scripts
 
