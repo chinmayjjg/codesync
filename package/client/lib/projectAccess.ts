@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { isValidObjectId } from "./validation";
 
 export type ProjectRole = "owner" | "editor" | "viewer";
 
@@ -24,6 +25,19 @@ export async function getProjectAccess(
   projectId: string,
   userId: string
 ): Promise<ProjectAccess | null> {
+  if (!isValidObjectId(projectId) || !isValidObjectId(userId)) {
+    return null;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  });
+
+  if (!user) {
+    return null;
+  }
+
   const project = await prisma.project.findFirst({
     where: {
       id: projectId,
@@ -66,6 +80,10 @@ export async function getProjectAccess(
 }
 
 export async function getFileAccess(fileId: string, userId: string) {
+  if (!isValidObjectId(fileId) || !isValidObjectId(userId)) {
+    return null;
+  }
+
   const file = await prisma.file.findUnique({
     where: { id: fileId },
     select: {

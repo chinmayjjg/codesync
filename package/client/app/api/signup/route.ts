@@ -1,15 +1,46 @@
 import { prisma } from "../../../lib/prisma";
 import { NextResponse } from "next/server";
 import bcrypt from "bcrypt";
+import { checkRateLimit } from "../../../lib/rateLimit";
+import {
+  normalizeEmail,
+  parseJsonObject,
+  sanitizeOptionalSingleLineText,
+} from "../../../lib/validation";
 
 export async function POST(req: Request) {
+  const rateLimit = checkRateLimit(req, "signup", 10, 60_000);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many signup attempts" },
+      { status: 429 }
+    );
+  }
+
   try {
-    const body = await req.json();
-    const { email, password, name } = body;
+    const body = await parseJsonObject(req);
+    if (!body) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    const email = normalizeEmail(body.email);
+    const password = typeof body.password === "string" ? body.password : "";
+    const name = sanitizeOptionalSingleLineText(body.name, 80);
 
     if (!email || !password) {
       return NextResponse.json(
         { error: "Missing fields" },
+        { status: 400 }
+      );
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: "Invalid email" }, { status: 400 });
+    }
+
+    if (password.length < 8 || password.length > 128) {
+      return NextResponse.json(
+        { error: "Password must be 8-128 characters" },
         { status: 400 }
       );
     }

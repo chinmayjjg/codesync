@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "./prisma";
 import bcrypt from "bcrypt";
+import { normalizeEmail } from "./validation";
 
 export const authOptions: NextAuthOptions = {
     providers: [
@@ -12,25 +13,31 @@ export const authOptions: NextAuthOptions = {
                 password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
-                if (!credentials?.email || !credentials?.password) {
-                    throw new Error("Missing credentials");
+                const email = normalizeEmail(credentials?.email);
+                const password =
+                    typeof credentials?.password === "string"
+                        ? credentials.password
+                        : "";
+
+                if (!email || !password) {
+                    throw new Error("Invalid email or password");
                 }
 
                 const user = await prisma.user.findUnique({
-                    where: { email: credentials.email },
+                    where: { email },
                 });
 
                 if (!user) {
-                    throw new Error("User not found");
+                    throw new Error("Invalid email or password");
                 }
 
                 const isValid = await bcrypt.compare(
-                    credentials.password,
+                    password,
                     user.password
                 );
 
                 if (!isValid) {
-                    throw new Error("Invalid password");
+                    throw new Error("Invalid email or password");
                 }
 
                 return {

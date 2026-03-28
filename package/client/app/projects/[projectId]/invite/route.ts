@@ -2,34 +2,62 @@ import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+import { getCurrentUserRecord } from "@/lib/currentUser";
+import { checkRateLimit } from "@/lib/rateLimit";
+import {
+  isValidObjectId,
+  normalizeEmail,
+  parseJsonObject,
+} from "@/lib/validation";
 
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
   const { projectId } = await params;
+  if (!isValidObjectId(projectId)) {
+    return NextResponse.json({ error: "Invalid project id" }, { status: 400 });
+  }
+
+  const rateLimit = checkRateLimit(req, "project-invite", 30, 60_000);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many invite attempts" },
+      { status: 429 }
+    );
+  }
+
   const session = await getServerSession(authOptions);
-
-  if (!session?.user?.email)
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  if (!session.user.id) {
+  const currentUser = await getCurrentUserRecord(session);
+  if (!currentUser) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { email, role } = await req.json();
-  const normalizedEmail = String(email || "").trim().toLowerCase();
-  const normalizedRole = role === "viewer" ? "viewer" : "editor";
+  const body = await parseJsonObject(req);
+  if (!body) {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const normalizedEmail = normalizeEmail(body.email);
+  const normalizedRole = body.role === "viewer" ? "viewer" : "editor";
 
   if (!normalizedEmail) {
     return NextResponse.json({ error: "Email is required" }, { status: 400 });
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return NextResponse.json({ error: "Invalid email" }, { status: 400 });
   }
 
   const project = await prisma.project.findUnique({
     where: { id: projectId },
   });
 
-  if (!project || project.ownerId !== session.user.id) {
+  if (!project) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
+  if (project.ownerId !== currentUser.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

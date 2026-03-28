@@ -36,7 +36,15 @@ export async function getProjectCollaborators(projectId: string) {
   });
 
   const memberCollaborators: Collaborator[] = project.members
-    .filter((member) => member.userId !== project.ownerId)
+    .filter(
+      (member) =>
+        member.userId !== project.ownerId &&
+        Boolean(
+          (member as typeof member & {
+            user?: { id: string; email: string; name: string | null } | null;
+          }).user
+        )
+    )
     .map((member) => ({
       id: member.user.id,
       memberId: member.id,

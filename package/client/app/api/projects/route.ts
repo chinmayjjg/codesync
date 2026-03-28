@@ -2,17 +2,23 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "../../../lib/auth";
 import { prisma } from "../../../lib/prisma";
 import { NextResponse } from "next/server";
+import { getCurrentUserRecord } from "../../../lib/currentUser";
+import { checkRateLimit } from "../../../lib/rateLimit";
+import {
+  parseJsonObject,
+  sanitizeSingleLineText,
+} from "../../../lib/validation";
 
 // GET /api/projects – list all projects owned by the logged-in user
 export async function GET() {
   const session = await getServerSession(authOptions);
-
-  if (!session?.user?.email) {
+  const currentUser = await getCurrentUserRecord(session);
+  if (!currentUser) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
+    where: { id: currentUser.id },
     include: { projects: { include: { files: true } } },
   });
 
@@ -25,17 +31,29 @@ export async function GET() {
 
 // POST /api/projects – create a new project for the logged-in user
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
+  const rateLimit = checkRateLimit(req, "create-project", 20, 60_000);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many project creation attempts" },
+      { status: 429 }
+    );
+  }
 
-  if (!session?.user?.email) {
+  const session = await getServerSession(authOptions);
+  const currentUser = await getCurrentUserRecord(session);
+  if (!currentUser) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    const body = await req.json();
-    const { name } = body;
+    const body = await parseJsonObject(req);
+    if (!body) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
 
-    if (!name || typeof name !== "string" || name.trim() === "") {
+    const name = sanitizeSingleLineText(body.name, 120);
+
+    if (!name) {
       return NextResponse.json(
         { error: "Project name is required" },
         { status: 400 }
@@ -43,7 +61,7 @@ export async function POST(req: Request) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { id: currentUser.id },
     });
 
     if (!user) {
@@ -52,7 +70,7 @@ export async function POST(req: Request) {
 
     const project = await prisma.project.create({
       data: {
-        name: name.trim(),
+        name,
         ownerId: user.id,
       },
     });
