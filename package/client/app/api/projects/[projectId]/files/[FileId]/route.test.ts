@@ -6,6 +6,7 @@ const {
   checkRateLimit,
   getFileAccess,
   deleteProjectFileTree,
+  recordFileVersion,
   fileFindUnique,
   fileFindFirst,
   fileUpdate,
@@ -16,6 +17,7 @@ const {
   checkRateLimit: vi.fn(),
   getFileAccess: vi.fn(),
   deleteProjectFileTree: vi.fn(),
+  recordFileVersion: vi.fn(),
   fileFindUnique: vi.fn(),
   fileFindFirst: vi.fn(),
   fileUpdate: vi.fn(),
@@ -40,6 +42,10 @@ vi.mock("../../../../../../lib/projectAccess", () => ({
 
 vi.mock("../../../../../../lib/fileOperations", () => ({
   deleteProjectFileTree,
+}));
+
+vi.mock("../../../../../../lib/fileVersions", () => ({
+  recordFileVersion,
 }));
 
 vi.mock("../../../../../../lib/prisma", () => ({
@@ -130,6 +136,12 @@ describe("project file detail route", () => {
     expect(fileUpdate).toHaveBeenCalledWith({
       where: { id: fileId },
       data: { content: "updated" },
+    });
+    expect(recordFileVersion).toHaveBeenCalledWith({
+      fileId,
+      projectId,
+      content: "updated",
+      createdById: editorId,
     });
   });
 

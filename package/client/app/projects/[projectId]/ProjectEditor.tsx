@@ -9,6 +9,7 @@ import { buildFileTree } from "@/lib/buildFileTree";
 import type {
   ActiveCollaborator,
   Collaborator,
+  FileVersionEntry,
   ProjectFile,
   ProjectRole,
   RealtimeConnectionStatus,
@@ -61,6 +62,12 @@ export default function ProjectEditor({
     useState<RealtimeConnectionStatus>("connecting");
   const [saveState, setSaveState] = useState<string>("");
   const [treeMessage, setTreeMessage] = useState<string>("");
+  const [historyEntries, setHistoryEntries] = useState<FileVersionEntry[]>([]);
+  const [historyState, setHistoryState] = useState<string>("");
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [restoringVersionId, setRestoringVersionId] = useState<string | null>(
+    null
+  );
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const createInputRef = useRef<HTMLInputElement | null>(null);
   const activeFileStorageKey = `codesync:${projectId}:activeFile`;
@@ -282,6 +289,37 @@ export default function ProjectEditor({
     );
   };
 
+  const refreshHistory = async (fileId: string) => {
+    setHistoryLoading(true);
+    setHistoryState("");
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/files/${fileId}/history`
+      );
+      const body = (await response.json().catch(() => [])) as
+        | FileVersionEntry[]
+        | { error?: string };
+
+      if (!response.ok || !Array.isArray(body)) {
+        throw new Error(
+          Array.isArray(body)
+            ? "Failed to load history"
+            : body.error || "Failed to load history"
+        );
+      }
+
+      setHistoryEntries(body);
+    } catch (error) {
+      console.error("Failed to load history:", error);
+      setHistoryEntries([]);
+      setHistoryState(
+        error instanceof Error ? error.message : "Failed to load history"
+      );
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   const saveFileContent = async (fileId: string, content: string) => {
     try {
       const response = await fetch(`/api/projects/${projectId}/files/${fileId}`, {
@@ -298,6 +336,7 @@ export default function ProjectEditor({
       }
 
       setSaveState("Saved");
+      void refreshHistory(fileId);
     } catch (error) {
       console.error("Failed to save file:", error);
       setSaveState("Save failed");
@@ -320,6 +359,60 @@ export default function ProjectEditor({
       void saveFileContent(fileId, content);
     }, 600);
   };
+
+  const handleRestoreVersion = async (versionId: string) => {
+    if (!activeFileId || !canEdit) {
+      return;
+    }
+
+    setRestoringVersionId(versionId);
+    setHistoryState("");
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/files/${activeFileId}/history`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ versionId }),
+        }
+      );
+
+      const body = (await response.json().catch(() => ({}))) as
+        | ProjectFile
+        | { error?: string };
+
+      if (!response.ok) {
+        throw new Error(
+          "error" in body ? body.error || "Restore failed" : "Restore failed"
+        );
+      }
+
+      if ("id" in body) {
+        updateFileContentState(body.id, body.content);
+      }
+
+      setSaveState("Restored");
+      setHistoryState("Version restored");
+      await refreshHistory(activeFileId);
+    } catch (error) {
+      console.error("Failed to restore version:", error);
+      setHistoryState(
+        error instanceof Error ? error.message : "Restore failed"
+      );
+    } finally {
+      setRestoringVersionId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!activeFileId) {
+      setHistoryEntries([]);
+      setHistoryState("");
+      return;
+    }
+
+    void refreshHistory(activeFileId);
+  }, [activeFileId]);
 
   const handleRenameFile = async (file: ProjectFile) => {
     if (!canEdit) {
@@ -664,6 +757,59 @@ export default function ProjectEditor({
             </span>
             <span>{activeFile ? saveState || "Ready" : "Idle"}</span>
           </div>
+
+          {activeFile && (
+            <div className="history-panel">
+              <div className="workspace-panel-header">
+                <span>Version history</span>
+                <button
+                  type="button"
+                  onClick={() => void refreshHistory(activeFile.id)}
+                  className="history-refresh"
+                >
+                  {historyLoading ? "Refreshing..." : "Refresh"}
+                </button>
+              </div>
+              {historyState && <p className="workspace-hint history-hint">{historyState}</p>}
+              {historyEntries.length === 0 ? (
+                <div className="empty-panel empty-panel-compact">
+                  <p className="empty-panel-title">No saved versions yet</p>
+                  <p className="empty-panel-copy">
+                    Save this file to capture a recoverable snapshot.
+                  </p>
+                </div>
+              ) : (
+                <div className="history-list">
+                  {historyEntries.map((entry) => (
+                    <div key={entry.id} className="history-row">
+                      <div className="history-main">
+                        <div className="history-title">
+                          {new Date(entry.createdAt).toLocaleString()}
+                        </div>
+                        <small className="history-meta">
+                          {entry.restoredFromVersionId
+                            ? "Restored snapshot"
+                            : "Saved snapshot"}
+                        </small>
+                      </div>
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => void handleRestoreVersion(entry.id)}
+                          disabled={restoringVersionId === entry.id}
+                          className="secondary-action history-action"
+                        >
+                          {restoringVersionId === entry.id
+                            ? "Restoring..."
+                            : "Restore"}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="editor-content">
             {activeFile ? (

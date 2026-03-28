@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "../../../../../../lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { deleteProjectFileTree } from "../../../../../../lib/fileOperations";
+import { recordFileVersion } from "../../../../../../lib/fileVersions";
 import { getFileAccess } from "../../../../../../lib/projectAccess";
 import { getCurrentUserRecord } from "../../../../../../lib/currentUser";
 import { checkRateLimit } from "../../../../../../lib/rateLimit";
@@ -117,6 +118,15 @@ export async function PUT(
     where: { id: FileId },
     data: updateData,
   });
+
+  if ("content" in updates && file.type === "file") {
+    await recordFileVersion({
+      fileId: FileId,
+      projectId,
+      content: updates.content ?? updatedFile.content,
+      createdById: currentUser.id,
+    });
+  }
 
   return NextResponse.json(updatedFile);
 }

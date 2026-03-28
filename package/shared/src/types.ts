@@ -55,3 +55,13 @@ export type RealtimeConnectionStatus =
   | "connected"
   | "connecting"
   | "disconnected";
+
+export type FileVersionEntry = {
+  id: string;
+  fileId: string;
+  projectId: string;
+  content: string;
+  createdAt: string;
+  createdById: string | null;
+  restoredFromVersionId: string | null;
+};

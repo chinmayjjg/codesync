@@ -28,14 +28,15 @@ model Project {
 }
 
 model File {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
   name      String
   content   String
-  projectId String   @db.ObjectId
-  project   Project  @relation(fields: [projectId], references: [id])
-  parentId  String?  @db.ObjectId
+  projectId String        @db.ObjectId
+  project   Project       @relation(fields: [projectId], references: [id])
+  parentId  String?       @db.ObjectId
   type      String // file | folder
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime      @updatedAt
+  versions  FileVersion[]
 }
 
 model ProjectMember {
@@ -48,4 +49,15 @@ model ProjectMember {
   project Project @relation(fields: [projectId], references: [id])
 
   @@unique([userId, projectId])
+}
+
+model FileVersion {
+  id                    String   @id @default(auto()) @map("_id") @db.ObjectId
+  fileId                String   @db.ObjectId
+  projectId             String   @db.ObjectId
+  file                  File     @relation(fields: [fileId], references: [id])
+  content               String
+  createdById           String?  @db.ObjectId
+  restoredFromVersionId String?  @db.ObjectId
+  createdAt             DateTime @default(now())
 }
