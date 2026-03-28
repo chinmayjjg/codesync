@@ -26,18 +26,16 @@ body {
 }
 
 .remote-cursor {
-  border-left: 2px solid red;
+  border-left: 2px solid currentColor;
   margin-left: -1px;
 }
 
-.cursor-label::after {
-  content: attr(data-user);
-  position: absolute;
-  top: -18px;
-  left: 0;
-  background: #333;
-  color: white;
+.cursor-label {
+  position: relative;
+  display: inline-block;
+  border-radius: 4px;
   font-size: 11px;
+  margin-left: 6px;
   padding: 2px 4px;
-  border-radius: 3px;
+  white-space: nowrap;
 }

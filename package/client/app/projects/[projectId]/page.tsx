@@ -3,17 +3,10 @@ import { notFound, redirect } from "next/navigation";
 import { authOptions } from "../../../lib/auth";
 import { prisma } from "../../../lib/prisma";
 import { getProjectAccess } from "../../../lib/projectAccess";
+import { getProjectCollaborators } from "../../../lib/projectCollaborators";
 import { createWebSocketToken } from "../../../lib/jwt";
 import ProjectEditor from "./ProjectEditor";
 import type { ProjectFile } from "@/lib/buildFileTree";
-
-type Collaborator = {
-  id: string;
-  memberId: string | null;
-  email: string;
-  name: string | null;
-  role: "owner" | "editor" | "viewer";
-};
 
 async function getProjectData(projectId: string, userId: string) {
   const access = await getProjectAccess(projectId, userId);
@@ -47,33 +40,7 @@ async function getProjectData(projectId: string, userId: string) {
     notFound();
   }
 
-  const owner = await prisma.user.findUnique({
-    where: { id: project.ownerId },
-    select: { id: true, email: true, name: true },
-  });
-
-  const memberCollaborators: Collaborator[] = project.members
-    .filter((member) => member.userId !== project.ownerId)
-    .map((member) => ({
-      id: member.user.id,
-      memberId: member.id,
-      email: member.user.email,
-      name: member.user.name,
-      role: member.role as "editor" | "viewer",
-    }));
-
-  const collaborators: Collaborator[] = owner
-    ? [
-        {
-          id: owner.id,
-          memberId: null,
-          email: owner.email,
-          name: owner.name,
-          role: "owner",
-        },
-        ...memberCollaborators,
-      ]
-    : memberCollaborators;
+  const collaborators = (await getProjectCollaborators(projectId)) ?? [];
 
   const normalizedFiles: ProjectFile[] = project.files.map((file) => {
     const normalizedFile = file as typeof file & {
@@ -125,6 +92,11 @@ export default async function ProjectPage({
       canManageRoles={isOwner}
       canEdit={canEdit}
       wsToken={wsToken}
+      currentUser={{
+        id: session.user.id,
+        name: session.user.name ?? null,
+        email: session.user.email ?? "",
+      }}
     />
   );
 }

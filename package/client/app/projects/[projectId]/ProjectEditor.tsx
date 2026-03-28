@@ -6,19 +6,15 @@ import CreateFile from "./CreateFile";
 import FileTabs from "@/app/components/FileTabs";
 import FileTree from "@/app/components/FileTree";
 import { buildFileTree, type ProjectFile } from "@/lib/buildFileTree";
-
-type Collaborator = {
-  id: string;
-  memberId: string | null;
-  email: string;
-  name: string | null;
-  role: "owner" | "editor" | "viewer";
-};
+import type { Collaborator } from "@/lib/projectCollaborators";
 
 type ActiveCollaborator = {
   clientId: number;
   name: string;
   color: string;
+  email?: string;
+  isTyping: boolean;
+  isOnline: boolean;
 };
 
 type InviteResponse = {
@@ -38,6 +34,7 @@ export default function ProjectEditor({
   canManageRoles,
   canEdit,
   wsToken,
+  currentUser,
 }: {
   files: ProjectFile[];
   projectId: string;
@@ -45,6 +42,11 @@ export default function ProjectEditor({
   canManageRoles: boolean;
   canEdit: boolean;
   wsToken?: string;
+  currentUser: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
 }) {
   const [files, setFiles] = useState<ProjectFile[]>(initialFiles);
   const [openFiles, setOpenFiles] = useState<ProjectFile[]>([]);
@@ -58,6 +60,9 @@ export default function ProjectEditor({
   const [activeCollaborators, setActiveCollaborators] = useState<
     ActiveCollaborator[]
   >([]);
+  const [connectionState, setConnectionState] = useState<
+    "connected" | "connecting" | "disconnected"
+  >("connecting");
   const [saveState, setSaveState] = useState<string>("");
   const [treeMessage, setTreeMessage] = useState<string>("");
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -126,31 +131,22 @@ export default function ProjectEditor({
     return descendantIds;
   };
 
-  const mergeCollaborator = (member: InviteResponse) => {
-    setCollaborators((prev) => {
-      const index = prev.findIndex((c) => c.email === member.user.email);
-      if (index === -1) {
-        return [
-          ...prev,
-          {
-            id: member.user.id,
-            memberId: member.id,
-            email: member.user.email,
-            name: member.user.name,
-            role: member.role,
-          },
-        ];
+  const refreshCollaborators = async () => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/members`);
+      const body = (await response.json().catch(() => [])) as
+        | Collaborator[]
+        | { error?: string };
+
+      if (!response.ok || !Array.isArray(body)) {
+        throw new Error(Array.isArray(body) ? "Failed to load collaborators" : body.error || "Failed to load collaborators");
       }
 
-      const next = [...prev];
-      next[index] = {
-        ...next[index],
-        memberId: member.id,
-        role: member.role,
-        name: member.user.name,
-      };
-      return next;
-    });
+      setCollaborators(body);
+    } catch (error) {
+      console.error("Failed to refresh collaborators:", error);
+      setInviteState(error instanceof Error ? error.message : "Failed to load collaborators");
+    }
   };
 
   const inviteOrUpdate = async (email: string, role: "editor" | "viewer") => {
@@ -172,7 +168,9 @@ export default function ProjectEditor({
         return false;
       }
 
-      if ("user" in data) mergeCollaborator(data);
+      if ("user" in data) {
+        await refreshCollaborators();
+      }
       setInviteState("Access updated");
       return true;
     } catch {
@@ -532,21 +530,48 @@ export default function ProjectEditor({
         }}
       >
         <h3 style={{ marginTop: 0 }}>Active collaborators</h3>
+        <p style={{ marginTop: 0, color: "#6b7280" }}>
+          Realtime status:{" "}
+          {connectionState === "connected"
+            ? "Connected"
+            : connectionState === "connecting"
+              ? "Reconnecting..."
+              : "Offline"}
+        </p>
         {activeCollaborators.length === 0 && <p>No one else is active.</p>}
         {activeCollaborators.map((user) => (
           <div
             key={user.clientId}
-            style={{ display: "flex", alignItems: "center", gap: "8px" }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "12px",
+              padding: "6px 0",
+            }}
           >
-            <span
-              style={{
-                width: "10px",
-                height: "10px",
-                borderRadius: "999px",
-                backgroundColor: user.color,
-              }}
-            />
-            <span>{user.name}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span
+                style={{
+                  width: "10px",
+                  height: "10px",
+                  borderRadius: "999px",
+                  backgroundColor: user.color,
+                  boxShadow: user.isOnline
+                    ? `0 0 0 3px ${user.color}33`
+                    : "none",
+                }}
+              />
+              <div>
+                <div>{user.name}</div>
+                {user.email && (
+                  <small style={{ color: "#6b7280" }}>{user.email}</small>
+                )}
+              </div>
+            </div>
+            <div style={{ color: "#9ca3af", fontSize: "12px" }}>
+              {user.isTyping ? "Typing..." : user.isOnline ? "Online" : "Offline"}
+            </div>
           </div>
         ))}
       </div>
@@ -638,11 +663,13 @@ export default function ProjectEditor({
                   key={activeFile.id}
                   file={activeFile}
                   onAwarenessChange={setActiveCollaborators}
+                  onConnectionStatusChange={setConnectionState}
                   onContentChange={(content) =>
                     handleFileContentChange(activeFile.id, content)
                   }
                   readOnly={!canEdit}
                   wsToken={wsToken}
+                  currentUser={currentUser}
                 />
               ) : (
                 <p style={{ margin: 0, color: "#9ca3af" }}>
