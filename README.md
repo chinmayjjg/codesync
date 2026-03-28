@@ -94,6 +94,8 @@ npm run dev:client
 npm run dev:server
 npm run build
 npm run lint
+npm run test
+npm run test:coverage
 npm run typecheck
 ```
 

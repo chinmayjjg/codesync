@@ -13,7 +13,13 @@
     "dev:server": "npm run dev --workspace @codesync/server",
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
     "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.2",
+    "vitest": "^4.1.2"
   }
 }
