@@ -35,69 +35,33 @@ export default function FileTree({
     const isActive = activeFileId === node.id;
 
     return (
-      <div key={node.id}>
+      <div key={node.id} className="tree-node">
         <button
           type="button"
           onClick={() => (isFolder ? toggleFolder(node.id) : onSelect(node))}
-          style={{
-            width: "100%",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "6px 8px 6px 12px",
-            paddingLeft: `${12 + depth * 14}px`,
-            background: isActive ? "#1f2937" : "transparent",
-            color: "#e5e7eb",
-            border: "none",
-            textAlign: "left",
-            cursor: "pointer",
-          }}
+          className={`tree-row ${isActive ? "tree-row-active" : ""}`}
+          style={{ paddingLeft: `${14 + depth * 16}px` }}
         >
-          <span style={{ width: "16px", color: "#9ca3af" }}>
-            {isFolder ? (isExpanded ? "v" : ">") : ""}
+          <span className="tree-chevron">
+            {isFolder ? (isExpanded ? "⌄" : "›") : "•"}
           </span>
-          <span>{isFolder ? "[DIR]" : "[FILE]"}</span>
-          <span style={{ flex: 1, minWidth: 0 }}>{node.name}</span>
+          <span className="tree-kind">{isFolder ? "DIR" : "FILE"}</span>
+          <span className="tree-name">{node.name}</span>
         </button>
 
         {canEdit && (
-          <div
-            style={{
-              display: "flex",
-              gap: "4px",
-              marginTop: "-34px",
-              marginBottom: "4px",
-              justifyContent: "flex-end",
-              paddingRight: "8px",
-            }}
-          >
+          <div className="tree-actions">
             <button
               type="button"
               onClick={() => onRename?.(node)}
-              style={{
-                background: "#1f2937",
-                border: "1px solid #374151",
-                color: "#d1d5db",
-                cursor: "pointer",
-                padding: "2px 6px",
-                borderRadius: "4px",
-                fontSize: "12px",
-              }}
+              className="tree-action-button"
             >
               Rename
             </button>
             <button
               type="button"
               onClick={() => onDelete?.(node)}
-              style={{
-                background: "#3f1d1d",
-                border: "1px solid #7f1d1d",
-                color: "#fecaca",
-                cursor: "pointer",
-                padding: "2px 6px",
-                borderRadius: "4px",
-                fontSize: "12px",
-              }}
+              className="tree-action-button tree-action-danger"
             >
               Delete
             </button>
@@ -111,5 +75,5 @@ export default function FileTree({
     );
   }
 
-  return <div>{files.map((file) => renderNode(file))}</div>;
+  return <div className="tree-root">{files.map((file) => renderNode(file))}</div>;
 }

@@ -51,20 +51,20 @@ export default function CreateFile({
   };
 
   return (
-    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+    <div className="create-file-bar">
       <input
         ref={inputRef}
         placeholder={type === "folder" ? "Folder name" : "File name"}
         value={name}
         onChange={(e) => setName(e.target.value)}
         disabled={isLoading || disabled}
-        style={{ padding: "8px" }}
+        className="create-file-input"
       />
       <select
         value={type}
         onChange={(e) => setType(e.target.value as ProjectFileType)}
         disabled={isLoading || disabled}
-        style={{ padding: "8px" }}
+        className="create-file-select"
       >
         <option value="file">File</option>
         <option value="folder">Folder</option>
@@ -73,7 +73,7 @@ export default function CreateFile({
         value={parentId}
         onChange={(e) => setParentId(e.target.value)}
         disabled={isLoading || disabled}
-        style={{ padding: "8px" }}
+        className="create-file-select"
       >
         <option value="">Root</option>
         {folders.map((folder) => (
@@ -82,7 +82,11 @@ export default function CreateFile({
           </option>
         ))}
       </select>
-      <button onClick={createFile} disabled={isLoading || disabled}>
+      <button
+        onClick={createFile}
+        disabled={isLoading || disabled}
+        className="create-file-button"
+      >
         {isLoading ? "Creating..." : "Create"}
       </button>
     </div>

@@ -396,290 +396,303 @@ export default function ProjectEditor({
   };
 
   return (
-    <div style={{ padding: "40px" }}>
-      <h1>Project Files</h1>
-
-      <div
-        style={{
-          border: "1px solid #ccc",
-          padding: "16px",
-          borderRadius: "8px",
-          marginBottom: "20px",
-        }}
-      >
-        <h2 style={{ marginTop: 0 }}>Share</h2>
-
-        <div
-          style={{
-            display: "flex",
-            gap: "10px",
-            flexWrap: "wrap",
-            marginBottom: "12px",
-            alignItems: "center",
-          }}
-        >
-          <input
-            readOnly
-            value={shareLink}
-            style={{ flex: 1, minWidth: "260px", padding: "8px" }}
-          />
-          <button
-            type="button"
-            onClick={handleCopyShareLink}
-            style={{ padding: "8px 12px", cursor: "pointer" }}
-          >
-            Share project link
-          </button>
+    <div className="workspace-shell">
+      <header className="workspace-header">
+        <div>
+          <p className="workspace-eyebrow">CodeSync Workspace</p>
+          <h1 className="workspace-title">Project Editor</h1>
         </div>
-
-        {canManageRoles && (
-          <form
-            onSubmit={handleInviteSubmit}
-            style={{
-              display: "flex",
-              gap: "10px",
-              flexWrap: "wrap",
-              alignItems: "center",
-            }}
-          >
-            <input
-              type="email"
-              placeholder="Invite by email"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              style={{ minWidth: "240px", padding: "8px" }}
-            />
-            <select
-              value={inviteRole}
-              onChange={(e) =>
-                setInviteRole(e.target.value as "editor" | "viewer")
-              }
-              style={{ padding: "8px" }}
-            >
-              <option value="viewer">View</option>
-              <option value="editor">Edit</option>
-            </select>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              style={{ padding: "8px 12px", cursor: "pointer" }}
-            >
-              Send invite
-            </button>
-          </form>
-        )}
-
-        {inviteState && (
-          <p style={{ marginTop: "10px", marginBottom: 0 }}>{inviteState}</p>
-        )}
-
-        <div style={{ marginTop: "14px" }}>
-          <h3 style={{ margin: "0 0 8px 0" }}>Collaborators</h3>
-          {collaborators.length === 0 && <p>No collaborators yet.</p>}
-          {collaborators.map((collab) => (
-            <div
-              key={collab.id}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "10px",
-                padding: "6px 0",
-                borderBottom: "1px solid #efefef",
-              }}
-            >
-              <div>
-                <div>{collab.name || collab.email}</div>
-                <small>{collab.email}</small>
-              </div>
-              <div>
-                {canManageRoles && collab.role !== "owner" ? (
-                  <select
-                    value={collab.role}
-                    onChange={(e) =>
-                      handleRoleChange(
-                        collab.email,
-                        e.target.value as "editor" | "viewer"
-                      )
-                    }
-                    style={{ padding: "6px" }}
-                  >
-                    <option value="viewer">View</option>
-                    <option value="editor">Edit</option>
-                  </select>
-                ) : (
-                  <span style={{ textTransform: "capitalize" }}>
-                    {collab.role === "viewer"
-                      ? "View"
-                      : collab.role === "editor"
-                        ? "Edit"
-                        : "Owner"}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
+        <div className="workspace-header-meta">
+          <span className={`status-pill status-pill-${connectionState}`}>
+            {connectionState === "connected"
+              ? "Realtime connected"
+              : connectionState === "connecting"
+                ? "Realtime reconnecting"
+                : "Realtime offline"}
+          </span>
+          <span className="status-pill status-pill-neutral">
+            {canEdit ? "Edit access" : "View only"}
+          </span>
+          <span className="status-pill status-pill-neutral">
+            {activeFile ? saveState || "Ready" : "No file selected"}
+          </span>
         </div>
-      </div>
+      </header>
 
-      <div
-        style={{
-          border: "1px solid #ccc",
-          padding: "12px 16px",
-          borderRadius: "8px",
-          marginBottom: "20px",
-        }}
-      >
-        <h3 style={{ marginTop: 0 }}>Active collaborators</h3>
-        <p style={{ marginTop: 0, color: "#6b7280" }}>
-          Realtime status:{" "}
-          {connectionState === "connected"
-            ? "Connected"
-            : connectionState === "connecting"
-              ? "Reconnecting..."
-              : "Offline"}
-        </p>
-        {activeCollaborators.length === 0 && <p>No one else is active.</p>}
-        {activeCollaborators.map((user) => (
-          <div
-            key={user.clientId}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "12px",
-              padding: "6px 0",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span
-                style={{
-                  width: "10px",
-                  height: "10px",
-                  borderRadius: "999px",
-                  backgroundColor: user.color,
-                  boxShadow: user.isOnline
-                    ? `0 0 0 3px ${user.color}33`
-                    : "none",
-                }}
-              />
+      <div className="workspace-grid">
+        <aside className="workspace-sidebar">
+          <section className="workspace-card">
+            <div className="workspace-card-header">
               <div>
-                <div>{user.name}</div>
-                {user.email && (
-                  <small style={{ color: "#6b7280" }}>{user.email}</small>
-                )}
+                <p className="workspace-card-kicker">Explorer</p>
+                <h2 className="workspace-card-title">Project files</h2>
               </div>
             </div>
-            <div style={{ color: "#9ca3af", fontSize: "12px" }}>
-              {user.isTyping ? "Typing..." : user.isOnline ? "Online" : "Offline"}
-            </div>
-          </div>
-        ))}
-      </div>
 
-      <CreateFile
-        projectId={projectId}
-        folders={folders}
-        onFileCreated={handleFileCreated}
-        disabled={!canEdit}
-        inputRef={createInputRef}
-      />
-
-      {!canEdit && (
-        <p style={{ marginTop: "12px", color: "#6b7280" }}>
-          You have view-only access to this project.
-        </p>
-      )}
-
-      {treeMessage && (
-        <p style={{ marginTop: "12px", color: "#6b7280" }}>{treeMessage}</p>
-      )}
-
-      {files.length === 0 && <p>No files yet. Create one to start editing.</p>}
-
-      {files.length > 0 && (
-        <div
-          style={{
-            marginTop: "20px",
-            display: "grid",
-            gridTemplateColumns: "280px 1fr",
-            border: "1px solid #2f2f2f",
-            borderRadius: "8px",
-            overflow: "hidden",
-            minHeight: "560px",
-          }}
-        >
-          <div
-            style={{
-              background: "#111827",
-              borderRight: "1px solid #2f2f2f",
-              padding: "12px 0",
-            }}
-          >
-            <div style={{ padding: "0 12px 10px", color: "#9ca3af" }}>
-              Explorer
-            </div>
-            <FileTree
-              files={tree}
-              activeFileId={activeFileId}
-              onSelect={openFile}
-              onRename={handleRenameFile}
-              onDelete={handleDeleteFile}
-              canEdit={canEdit}
+            <CreateFile
+              projectId={projectId}
+              folders={folders}
+              onFileCreated={handleFileCreated}
+              disabled={!canEdit}
+              inputRef={createInputRef}
             />
-          </div>
 
-          <div
-            style={{
-              background: "#0b1220",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            <FileTabs
-              openFiles={openFiles}
-              activeFileId={activeFileId}
-              onSelect={setActiveFileId}
-              onClose={closeFile}
-              onCloseActive={() => {
-                if (activeFileId) {
-                  closeFile(activeFileId);
-                }
-              }}
-            />
-            <div
-              style={{
-                minHeight: "32px",
-                padding: "8px 12px",
-                borderBottom: "1px solid #1f2937",
-                color: "#9ca3af",
-                fontSize: "14px",
-              }}
-            >
-              {activeFile ? saveState || "Ready" : "No file selected"}
-            </div>
-            <div style={{ flex: 1, padding: activeFile ? 0 : "16px" }}>
-              {activeFile ? (
-                <CodeEditor
-                  key={activeFile.id}
-                  file={activeFile}
-                  onAwarenessChange={setActiveCollaborators}
-                  onConnectionStatusChange={setConnectionState}
-                  onContentChange={(content) =>
-                    handleFileContentChange(activeFile.id, content)
-                  }
-                  readOnly={!canEdit}
-                  wsToken={wsToken}
-                  currentUser={currentUser}
-                />
+            {!canEdit && (
+              <p className="workspace-hint">
+                You have view-only access to this project.
+              </p>
+            )}
+
+            {treeMessage && <p className="workspace-hint">{treeMessage}</p>}
+
+            <div className="workspace-panel">
+              <div className="workspace-panel-header">
+                <span>Files</span>
+                <span>{files.length}</span>
+              </div>
+              {files.length === 0 ? (
+                <div className="empty-panel">
+                  <p className="empty-panel-title">No files yet</p>
+                  <p className="empty-panel-copy">
+                    Create a file or folder to turn this project into a working
+                    workspace.
+                  </p>
+                </div>
               ) : (
-                <p style={{ margin: 0, color: "#9ca3af" }}>
-                  Select a file from the explorer to open it.
-                </p>
+                <FileTree
+                  files={tree}
+                  activeFileId={activeFileId}
+                  onSelect={openFile}
+                  onRename={handleRenameFile}
+                  onDelete={handleDeleteFile}
+                  canEdit={canEdit}
+                />
               )}
             </div>
+          </section>
+
+          <section className="workspace-card">
+            <div className="workspace-card-header">
+              <div>
+                <p className="workspace-card-kicker">Collaboration</p>
+                <h2 className="workspace-card-title">People</h2>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyShareLink}
+                className="secondary-action"
+              >
+                Copy link
+              </button>
+            </div>
+
+            <div className="share-link-card">
+              <input readOnly value={shareLink} className="share-link-input" />
+            </div>
+
+            {canManageRoles && (
+              <form onSubmit={handleInviteSubmit} className="invite-form">
+                <input
+                  type="email"
+                  placeholder="Invite by email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="invite-input"
+                />
+                <select
+                  value={inviteRole}
+                  onChange={(e) =>
+                    setInviteRole(e.target.value as "editor" | "viewer")
+                  }
+                  className="invite-select"
+                >
+                  <option value="viewer">Viewer</option>
+                  <option value="editor">Editor</option>
+                </select>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="primary-action"
+                >
+                  {isSubmitting ? "Sending..." : "Send invite"}
+                </button>
+              </form>
+            )}
+
+            {inviteState && <p className="workspace-hint">{inviteState}</p>}
+
+            <div className="workspace-panel">
+              <div className="workspace-panel-header">
+                <span>Collaborators</span>
+                <span>{collaborators.length}</span>
+              </div>
+              {collaborators.length === 0 ? (
+                <div className="empty-panel">
+                  <p className="empty-panel-title">No collaborators yet</p>
+                  <p className="empty-panel-copy">
+                    Share the project with teammates to collaborate in real
+                    time.
+                  </p>
+                </div>
+              ) : (
+                <div className="collaborator-list">
+                  {collaborators.map((collab) => (
+                    <div key={collab.id} className="collaborator-row">
+                      <div>
+                        <div className="collaborator-name">
+                          {collab.name || collab.email}
+                        </div>
+                        <small className="collaborator-email">
+                          {collab.email}
+                        </small>
+                      </div>
+                      <div>
+                        {canManageRoles && collab.role !== "owner" ? (
+                          <select
+                            value={collab.role}
+                            onChange={(e) =>
+                              handleRoleChange(
+                                collab.email,
+                                e.target.value as "editor" | "viewer"
+                              )
+                            }
+                            className="collaborator-role-select"
+                          >
+                            <option value="viewer">Viewer</option>
+                            <option value="editor">Editor</option>
+                          </select>
+                        ) : (
+                          <span className="role-badge">
+                            {collab.role === "viewer"
+                              ? "Viewer"
+                              : collab.role === "editor"
+                                ? "Editor"
+                                : "Owner"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="workspace-panel">
+              <div className="workspace-panel-header">
+                <span>Active now</span>
+                <span>{activeCollaborators.length}</span>
+              </div>
+              {activeCollaborators.length === 0 ? (
+                <div className="empty-panel empty-panel-compact">
+                  <p className="empty-panel-title">Nobody else is here</p>
+                  <p className="empty-panel-copy">
+                    Active collaborators will appear here when they join.
+                  </p>
+                </div>
+              ) : (
+                <div className="presence-list">
+                  {activeCollaborators.map((user) => (
+                    <div key={user.clientId} className="presence-row">
+                      <div className="presence-main">
+                        <span
+                          className="presence-dot"
+                          style={{
+                            backgroundColor: user.color,
+                            boxShadow: user.isOnline
+                              ? `0 0 0 3px ${user.color}33`
+                              : "none",
+                          }}
+                        />
+                        <div>
+                          <div className="collaborator-name">{user.name}</div>
+                          {user.email && (
+                            <small className="collaborator-email">
+                              {user.email}
+                            </small>
+                          )}
+                        </div>
+                      </div>
+                      <div className="presence-state">
+                        {user.isTyping
+                          ? "Typing..."
+                          : user.isOnline
+                            ? "Online"
+                            : "Offline"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        </aside>
+
+        <section className="workspace-editor-card">
+          <div className="editor-topbar">
+            <div>
+              <p className="workspace-card-kicker">Editor</p>
+              <h2 className="workspace-card-title">
+                {activeFile ? activeFile.name : "No file open"}
+              </h2>
+            </div>
+            {activeFile && (
+              <div className="editor-meta">
+                <span className="role-badge">
+                  {activeFile.type === "folder" ? "Folder" : "File"}
+                </span>
+                <span className="role-badge">{openFiles.length} open tab(s)</span>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+
+          <FileTabs
+            openFiles={openFiles}
+            activeFileId={activeFileId}
+            onSelect={setActiveFileId}
+            onClose={closeFile}
+            onCloseActive={() => {
+              if (activeFileId) {
+                closeFile(activeFileId);
+              }
+            }}
+          />
+
+          <div className="editor-statusbar">
+            <span>
+              {activeFile
+                ? `${activeFile.name} is ready`
+                : "Pick a file from the explorer to begin"}
+            </span>
+            <span>{activeFile ? saveState || "Ready" : "Idle"}</span>
+          </div>
+
+          <div className="editor-content">
+            {activeFile ? (
+              <CodeEditor
+                key={activeFile.id}
+                file={activeFile}
+                onAwarenessChange={setActiveCollaborators}
+                onConnectionStatusChange={setConnectionState}
+                onContentChange={(content) =>
+                  handleFileContentChange(activeFile.id, content)
+                }
+                readOnly={!canEdit}
+                wsToken={wsToken}
+                currentUser={currentUser}
+              />
+            ) : (
+              <div className="editor-empty-state">
+                <div className="editor-empty-illustration">{"</>"}</div>
+                <p className="empty-panel-title">Choose a file to start editing</p>
+                <p className="empty-panel-copy">
+                  Open something from the explorer, or create a new file to
+                  turn this blank canvas into code.
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
