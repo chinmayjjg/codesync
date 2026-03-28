@@ -59,7 +59,10 @@ export default function ProjectEditor({
     ActiveCollaborator[]
   >([]);
   const [saveState, setSaveState] = useState<string>("");
+  const [treeMessage, setTreeMessage] = useState<string>("");
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const createInputRef = useRef<HTMLInputElement | null>(null);
+  const activeFileStorageKey = `codesync:${projectId}:activeFile`;
 
   const tree = buildFileTree(files);
   const folders = files.filter((file) => file.type === "folder");
@@ -83,6 +86,7 @@ export default function ProjectEditor({
       return [...prev, file];
     });
     setActiveFileId(file.id);
+    setTreeMessage("");
   };
 
   const closeFile = (fileId: string) => {
@@ -103,6 +107,23 @@ export default function ProjectEditor({
     if (newFile.type === "file") {
       openFile(newFile);
     }
+  };
+
+  const collectDescendantIds = (fileId: string) => {
+    const descendantIds = new Set<string>([fileId]);
+    let changed = true;
+
+    while (changed) {
+      changed = false;
+      files.forEach((file) => {
+        if (file.parentId && descendantIds.has(file.parentId) && !descendantIds.has(file.id)) {
+          descendantIds.add(file.id);
+          changed = true;
+        }
+      });
+    }
+
+    return descendantIds;
   };
 
   const mergeCollaborator = (member: InviteResponse) => {
@@ -198,6 +219,63 @@ export default function ProjectEditor({
     setSaveState(activeFileId ? "Ready" : "");
   }, [activeFileId]);
 
+  useEffect(() => {
+    const savedActiveFileId = window.localStorage.getItem(activeFileStorageKey);
+    if (!savedActiveFileId) {
+      return;
+    }
+
+    const savedFile = files.find((file) => file.id === savedActiveFileId);
+    if (savedFile && savedFile.type === "file") {
+      setOpenFiles((prev) =>
+        prev.some((file) => file.id === savedFile.id) ? prev : [...prev, savedFile]
+      );
+      setActiveFileId(savedFile.id);
+    }
+  }, [activeFileStorageKey, files]);
+
+  useEffect(() => {
+    if (!activeFileId) {
+      window.localStorage.removeItem(activeFileStorageKey);
+      return;
+    }
+
+    window.localStorage.setItem(activeFileStorageKey, activeFileId);
+  }, [activeFileId, activeFileStorageKey]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isModifierPressed = event.metaKey || event.ctrlKey;
+      if (!isModifierPressed) {
+        return;
+      }
+
+      if (event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        if (activeFile) {
+          void saveFileContent(activeFile.id, activeFile.content);
+        }
+        return;
+      }
+
+      if (event.key.toLowerCase() === "w") {
+        event.preventDefault();
+        if (activeFileId) {
+          closeFile(activeFileId);
+        }
+        return;
+      }
+
+      if (event.shiftKey && event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        createInputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeFile, activeFileId]);
+
   const updateFileContentState = (fileId: string, content: string) => {
     setFiles((prev) =>
       prev.map((file) => (file.id === fileId ? { ...file, content } : file))
@@ -244,6 +322,79 @@ export default function ProjectEditor({
     saveTimeoutRef.current = setTimeout(() => {
       void saveFileContent(fileId, content);
     }, 600);
+  };
+
+  const handleRenameFile = async (file: ProjectFile) => {
+    if (!canEdit) {
+      return;
+    }
+
+    const nextName = window.prompt(`Rename ${file.type}`, file.name)?.trim();
+    if (!nextName || nextName === file.name) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/files/${file.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: nextName }),
+      });
+
+      const body = (await response.json().catch(() => ({}))) as
+        | ProjectFile
+        | { error?: string };
+
+      if (!response.ok) {
+        throw new Error("error" in body ? body.error || "Rename failed" : "Rename failed");
+      }
+
+      if ("id" in body) {
+        setFiles((prev) => prev.map((entry) => (entry.id === body.id ? { ...entry, name: body.name } : entry)));
+        setOpenFiles((prev) =>
+          prev.map((entry) => (entry.id === body.id ? { ...entry, name: body.name } : entry))
+        );
+        setTreeMessage(`Renamed to ${body.name}`);
+      }
+    } catch (error) {
+      console.error("Failed to rename file:", error);
+      setTreeMessage(error instanceof Error ? error.message : "Rename failed");
+    }
+  };
+
+  const handleDeleteFile = async (file: ProjectFile) => {
+    if (!canEdit) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete ${file.type} "${file.name}"${file.type === "folder" ? " and its contents" : ""}?`
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/files/${file.id}`, {
+        method: "DELETE",
+      });
+
+      const body = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        throw new Error(body.error || "Delete failed");
+      }
+
+      const idsToRemove = collectDescendantIds(file.id);
+      setFiles((prev) => prev.filter((entry) => !idsToRemove.has(entry.id)));
+      setOpenFiles((prev) => prev.filter((entry) => !idsToRemove.has(entry.id)));
+      if (activeFileId && idsToRemove.has(activeFileId)) {
+        setActiveFileId(null);
+      }
+      setTreeMessage(`Deleted ${file.name}`);
+    } catch (error) {
+      console.error("Failed to delete file:", error);
+      setTreeMessage(error instanceof Error ? error.message : "Delete failed");
+    }
   };
 
   return (
@@ -405,12 +556,17 @@ export default function ProjectEditor({
         folders={folders}
         onFileCreated={handleFileCreated}
         disabled={!canEdit}
+        inputRef={createInputRef}
       />
 
       {!canEdit && (
         <p style={{ marginTop: "12px", color: "#6b7280" }}>
           You have view-only access to this project.
         </p>
+      )}
+
+      {treeMessage && (
+        <p style={{ marginTop: "12px", color: "#6b7280" }}>{treeMessage}</p>
       )}
 
       {files.length === 0 && <p>No files yet. Create one to start editing.</p>}
@@ -441,6 +597,9 @@ export default function ProjectEditor({
               files={tree}
               activeFileId={activeFileId}
               onSelect={openFile}
+              onRename={handleRenameFile}
+              onDelete={handleDeleteFile}
+              canEdit={canEdit}
             />
           </div>
 
@@ -456,6 +615,11 @@ export default function ProjectEditor({
               activeFileId={activeFileId}
               onSelect={setActiveFileId}
               onClose={closeFile}
+              onCloseActive={() => {
+                if (activeFileId) {
+                  closeFile(activeFileId);
+                }
+              }}
             />
             <div
               style={{

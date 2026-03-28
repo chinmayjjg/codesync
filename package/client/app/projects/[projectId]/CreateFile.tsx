@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { RefObject, useState } from "react";
 import type { ProjectFile, ProjectFileType } from "@/lib/buildFileTree";
 
 export default function CreateFile({
@@ -8,11 +8,13 @@ export default function CreateFile({
   folders,
   onFileCreated,
   disabled = false,
+  inputRef,
 }: {
   projectId: string;
   folders: ProjectFile[];
   onFileCreated?: (file: ProjectFile) => void;
   disabled?: boolean;
+  inputRef?: RefObject<HTMLInputElement | null>;
 }) {
   const [name, setName] = useState("");
   const [type, setType] = useState<ProjectFileType>("file");
@@ -51,6 +53,7 @@ export default function CreateFile({
   return (
     <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
       <input
+        ref={inputRef}
         placeholder={type === "folder" ? "Folder name" : "File name"}
         value={name}
         onChange={(e) => setName(e.target.value)}

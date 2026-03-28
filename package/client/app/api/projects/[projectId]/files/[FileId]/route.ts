@@ -15,7 +15,28 @@ export async function PUT(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { content } = await req.json();
+  const body = await req.json();
+  const updates: { content?: string; name?: string } = {};
+
+  if ("content" in body) {
+    if (typeof body.content !== "string") {
+      return NextResponse.json({ error: "Invalid content" }, { status: 400 });
+    }
+    updates.content = body.content;
+  }
+
+  if ("name" in body) {
+    const trimmedName =
+      typeof body.name === "string" ? body.name.trim() : "";
+    if (!trimmedName) {
+      return NextResponse.json({ error: "Name required" }, { status: 400 });
+    }
+    updates.name = trimmedName;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: "No updates provided" }, { status: 400 });
+  }
 
   const fileAccess = await getFileAccess(FileId, session.user.id);
   if (!fileAccess?.access.canWrite) {
@@ -24,7 +45,7 @@ export async function PUT(
 
   const updatedFile = await prisma.file.update({
     where: { id: FileId },
-    data: { content },
+    data: updates,
   });
 
   return NextResponse.json(updatedFile);

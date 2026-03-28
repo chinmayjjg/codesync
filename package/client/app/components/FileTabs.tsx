@@ -7,11 +7,13 @@ export default function FileTabs({
   activeFileId,
   onSelect,
   onClose,
+  onCloseActive,
 }: {
   openFiles: ProjectFile[];
   activeFileId: string | null;
   onSelect: (fileId: string) => void;
   onClose: (fileId: string) => void;
+  onCloseActive?: () => void;
 }) {
   return (
     <div
@@ -21,6 +23,9 @@ export default function FileTabs({
         overflowX: "auto",
       }}
     >
+      {openFiles.length === 0 && (
+        <div style={{ padding: "8px 12px", color: "#6b7280" }}>No open files</div>
+      )}
       {openFiles.map((file) => (
         <div
           key={file.id}
@@ -56,6 +61,22 @@ export default function FileTabs({
           </button>
         </div>
       ))}
+      {openFiles.length > 0 && onCloseActive && (
+        <button
+          type="button"
+          onClick={onCloseActive}
+          style={{
+            marginLeft: "auto",
+            padding: "8px 12px",
+            background: "transparent",
+            border: "none",
+            color: "#9ca3af",
+            cursor: "pointer",
+          }}
+        >
+          Close Active
+        </button>
+      )}
     </div>
   );
 }

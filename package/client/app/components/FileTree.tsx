@@ -7,10 +7,16 @@ export default function FileTree({
   files,
   activeFileId,
   onSelect,
+  onRename,
+  onDelete,
+  canEdit,
 }: {
   files: FileTreeNode[];
   activeFileId: string | null;
   onSelect: (file: ProjectFile) => void;
+  onRename?: (file: ProjectFile) => void;
+  onDelete?: (file: ProjectFile) => void;
+  canEdit?: boolean;
 }) {
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>(
     {}
@@ -51,8 +57,52 @@ export default function FileTree({
             {isFolder ? (isExpanded ? "v" : ">") : ""}
           </span>
           <span>{isFolder ? "[DIR]" : "[FILE]"}</span>
-          <span>{node.name}</span>
+          <span style={{ flex: 1, minWidth: 0 }}>{node.name}</span>
         </button>
+
+        {canEdit && (
+          <div
+            style={{
+              display: "flex",
+              gap: "4px",
+              marginTop: "-34px",
+              marginBottom: "4px",
+              justifyContent: "flex-end",
+              paddingRight: "8px",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => onRename?.(node)}
+              style={{
+                background: "#1f2937",
+                border: "1px solid #374151",
+                color: "#d1d5db",
+                cursor: "pointer",
+                padding: "2px 6px",
+                borderRadius: "4px",
+                fontSize: "12px",
+              }}
+            >
+              Rename
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete?.(node)}
+              style={{
+                background: "#3f1d1d",
+                border: "1px solid #7f1d1d",
+                color: "#fecaca",
+                cursor: "pointer",
+                padding: "2px 6px",
+                borderRadius: "4px",
+                fontSize: "12px",
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        )}
 
         {isFolder &&
           isExpanded &&
