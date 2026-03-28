@@ -1,10 +1,4 @@
-function requirePublicEnv(name: "NEXT_PUBLIC_WS_URL") {
-  const value = process.env[name];
-
-  if (!value || !value.trim()) {
-    throw new Error(`Missing required public environment variable: ${name}`);
-  }
-
+function validateWsUrl(value: string, name: string) {
   try {
     const parsed = new URL(value);
     if (parsed.protocol !== "ws:" && parsed.protocol !== "wss:") {
@@ -18,6 +12,25 @@ function requirePublicEnv(name: "NEXT_PUBLIC_WS_URL") {
   }
 }
 
-export const clientEnv = {
-  NEXT_PUBLIC_WS_URL: requirePublicEnv("NEXT_PUBLIC_WS_URL"),
-};
+export function getClientEnv() {
+  const configuredWsUrl = process.env.NEXT_PUBLIC_WS_URL;
+
+  if (configuredWsUrl?.trim()) {
+    return {
+      NEXT_PUBLIC_WS_URL: validateWsUrl(
+        configuredWsUrl,
+        "NEXT_PUBLIC_WS_URL"
+      ),
+    };
+  }
+
+  if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
+    console.warn(
+      "NEXT_PUBLIC_WS_URL is missing. Falling back to ws://localhost:8080 for local development."
+    );
+  }
+
+  return {
+    NEXT_PUBLIC_WS_URL: "ws://localhost:8080",
+  };
+}

@@ -5,7 +5,7 @@ import Editor from "@monaco-editor/react";
 import type { editor as MonacoEditorApi } from "monaco-editor";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
-import { clientEnv } from "@/lib/env.client";
+import { getClientEnv } from "@/lib/env.client";
 import type {
   ActiveCollaborator,
   AwarenessState,
@@ -46,7 +46,7 @@ export default function CodeEditor({
     const ydoc = new Y.Doc();
     let decorationIds: string[] = [];
 
-    const wsUrl = clientEnv.NEXT_PUBLIC_WS_URL;
+    const wsUrl = getClientEnv().NEXT_PUBLIC_WS_URL;
     const fullWsUrl = wsToken
       ? `${wsUrl}?token=${encodeURIComponent(wsToken)}`
       : wsUrl;
