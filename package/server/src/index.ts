@@ -1,4 +1,8 @@
 import "dotenv/config";
+
+// Monkey-patch to bypass Node CommonJS/ESM dual-package "Yjs was already imported" error
+Object.defineProperty(globalThis, "YjsHasBeenImported", { get: () => undefined, set: () => {} });
+
 import { WebSocketServer, WebSocket } from "ws";
 import type { IncomingMessage } from "http";
 import type { AddressInfo } from "net";
