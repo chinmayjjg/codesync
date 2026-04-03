@@ -1,16 +1,22 @@
 import "dotenv/config";
 
-// Monkey-patch to bypass Node CommonJS/ESM dual-package "Yjs was already imported" error
-Object.defineProperty(globalThis, "YjsHasBeenImported", { get: () => undefined, set: () => {} });
+// Keep ts-node/CJS startup from tripping Yjs' dual-import global warning.
+if (!("__ $YJS$ __" in globalThis)) {
+  Object.defineProperty(globalThis, "__ $YJS$ __", {
+    configurable: true,
+    enumerable: false,
+    writable: true,
+    value: false,
+  });
+}
 
 import { WebSocketServer, WebSocket } from "ws";
 import type { IncomingMessage } from "http";
 import type { AddressInfo } from "net";
 import { parse } from "url";
 import jwt from "jsonwebtoken";
-// @ts-expect-error - moduleResolution setting prevents loading these types
 import { setupWSConnection } from "@y/websocket-server/utils";
-import { serverConfig } from "./config";
+import { serverConfig } from "./config.js";
 
 interface AuthenticatedWebSocket extends WebSocket {
   userId?: string;

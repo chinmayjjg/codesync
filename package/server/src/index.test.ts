@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
-import { createCodeSyncWebSocketServer } from "./index";
+import { createCodeSyncWebSocketServer } from "./index.js";
 
 const TEST_SECRET = "codesync-websocket-test-secret";
 const jwtSign = (jwt as unknown as {
