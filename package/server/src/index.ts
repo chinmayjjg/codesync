@@ -14,7 +14,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import type { IncomingMessage } from "http";
 import type { AddressInfo } from "net";
 import { parse } from "url";
-import jwt from "jsonwebtoken";
+import { verifyWebSocketToken } from "./jwt.js";
 import { setupWSConnection } from "@y/websocket-server/utils";
 import { serverConfig } from "./config.js";
 
@@ -54,11 +54,7 @@ function authenticateConnection(
   }
 
   try {
-    const decoded = jwt.verify(token, nextAuthSecret) as {
-      id?: string;
-      userId?: string;
-    };
-    const userId = decoded.id || decoded.userId;
+    const userId = verifyWebSocketToken(token);
 
     if (!userId) {
       logger.log("Connection rejected: Invalid token payload");

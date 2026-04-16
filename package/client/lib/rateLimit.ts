@@ -1,6 +1,3 @@
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
-
 export type RateLimitResult = {
   allowed: boolean;
   remaining: number;
@@ -73,11 +70,48 @@ class MemoryRateLimitStore implements RateLimitStore {
   }
 }
 
-class UpstashRateLimitStore implements RateLimitStore {
-  private readonly redis = Redis.fromEnv();
-  private readonly ratelimiters = new Map<string, Ratelimit>();
+type UpstashRedisModule = typeof import("@upstash/redis");
+type UpstashRateLimitModule = typeof import("@upstash/ratelimit");
+type UpstashRedisClient = InstanceType<UpstashRedisModule["Redis"]>;
+type UpstashRateLimiter = InstanceType<UpstashRateLimitModule["Ratelimit"]>;
 
-  private getLimiter(scope: string, limit: number, windowMs: number) {
+const loadModule = new Function(
+  "specifier",
+  'return import(specifier);'
+) as <T>(specifier: string) => Promise<T>;
+
+let upstashModulesPromise:
+  | Promise<{
+      Redis: UpstashRedisModule["Redis"];
+      Ratelimit: UpstashRateLimitModule["Ratelimit"];
+    }>
+  | undefined;
+
+function getUpstashModules() {
+  upstashModulesPromise ??= Promise.all([
+    loadModule<UpstashRedisModule>("@upstash/redis"),
+    loadModule<UpstashRateLimitModule>("@upstash/ratelimit"),
+  ]).then(([redisModule, ratelimitModule]) => ({
+    Redis: redisModule.Redis,
+    Ratelimit: ratelimitModule.Ratelimit,
+  }));
+
+  return upstashModulesPromise;
+}
+
+class UpstashRateLimitStore implements RateLimitStore {
+  private redisPromise?: Promise<UpstashRedisClient>;
+  private readonly ratelimiters = new Map<string, Promise<UpstashRateLimiter>>();
+
+  private async getRedis() {
+    this.redisPromise ??= getUpstashModules().then(({ Redis }) =>
+      Redis.fromEnv()
+    );
+
+    return this.redisPromise;
+  }
+
+  private async getLimiter(scope: string, limit: number, windowMs: number) {
     const cacheKey = `${scope}:${limit}:${windowMs}`;
     const existing = this.ratelimiters.get(cacheKey);
 
@@ -85,10 +119,14 @@ class UpstashRateLimitStore implements RateLimitStore {
       return existing;
     }
 
-    const ratelimit = new Ratelimit({
-      redis: this.redis,
-      limiter: Ratelimit.slidingWindow(limit, toDuration(windowMs)),
-      prefix: `codesync:ratelimit:${scope}`,
+    const ratelimit = getUpstashModules().then(async ({ Ratelimit }) => {
+      const redis = await this.getRedis();
+
+      return new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(limit, toDuration(windowMs)),
+        prefix: `codesync:ratelimit:${scope}`,
+      });
     });
 
     this.ratelimiters.set(cacheKey, ratelimit);
@@ -101,9 +139,8 @@ class UpstashRateLimitStore implements RateLimitStore {
     limit: number,
     windowMs: number
   ): Promise<RateLimitResult> {
-    const result = await this.getLimiter(scope, limit, windowMs).limit(
-      identifier
-    );
+    const limiter = await this.getLimiter(scope, limit, windowMs);
+    const result = await limiter.limit(identifier);
 
     return {
       allowed: result.success,

@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken";
+import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
 import * as Y from "yjs";
@@ -6,12 +6,30 @@ import { WebsocketProvider } from "y-websocket";
 import { createCodeSyncWebSocketServer } from "./index.js";
 
 const TEST_SECRET = "codesync-websocket-test-secret";
-const jwtSign = (jwt as unknown as {
-  sign: (payload: object, secret: string, options: { expiresIn: string }) => string;
-}).sign;
+
+function encodeBase64Url(value: string) {
+  return Buffer.from(value)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function signToken(unsignedToken: string, secret: string) {
+  return createHmac("sha256", secret)
+    .update(unsignedToken)
+    .digest("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
 
 function createToken(userId: string) {
-  return jwtSign({ id: userId }, TEST_SECRET, { expiresIn: "1h" });
+  const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60;
+  const header = encodeBase64Url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const payload = encodeBase64Url(JSON.stringify({ id: userId, exp: expiresAt }));
+  const unsignedToken = `${header}.${payload}`;
+  return `${unsignedToken}.${signToken(unsignedToken, TEST_SECRET)}`;
 }
 
 function waitForWebSocketClose(socket: WebSocket) {
