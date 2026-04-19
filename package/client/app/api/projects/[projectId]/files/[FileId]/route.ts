@@ -15,12 +15,20 @@ import {
   sanitizeSingleLineText,
 } from "../../../../../../lib/validation";
 
+function resolveFileIdParam(params: { FileId?: string; fileId?: string }) {
+  return params.FileId ?? params.fileId ?? "";
+}
+
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ projectId: string; FileId: string }> }
+  {
+    params,
+  }: { params: Promise<{ projectId: string; FileId?: string; fileId?: string }> }
 ) {
-  const { projectId, FileId } = await params;
-  if (!isValidObjectId(projectId) || !isValidObjectId(FileId)) {
+  const resolvedParams = await params;
+  const projectId = resolvedParams.projectId;
+  const fileId = resolveFileIdParam(resolvedParams);
+  if (!isValidObjectId(projectId) || !isValidObjectId(fileId)) {
     return NextResponse.json({ error: "Invalid resource id" }, { status: 400 });
   }
 
@@ -65,7 +73,7 @@ export async function PUT(
     return NextResponse.json({ error: "No updates provided" }, { status: 400 });
   }
 
-  const fileAccess = await getFileAccess(FileId, currentUser.id);
+  const fileAccess = await getFileAccess(fileId, currentUser.id);
   if (!fileAccess?.access.canWrite) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -78,7 +86,7 @@ export async function PUT(
   } as Prisma.FileSelect;
 
   const file = (await prisma.file.findUnique({
-    where: { id: FileId },
+    where: { id: fileId },
     select: fileSelect,
   })) as {
     id: string;
@@ -96,7 +104,7 @@ export async function PUT(
       projectId,
       parentId: file.parentId,
       name: updates.name,
-      id: { not: FileId },
+      id: { not: fileId },
     };
 
     const existingSibling = await prisma.file.findFirst({
@@ -115,13 +123,13 @@ export async function PUT(
   const updateData = updates as Prisma.FileUpdateInput;
 
   const updatedFile = await prisma.file.update({
-    where: { id: FileId },
+    where: { id: fileId },
     data: updateData,
   });
 
   if ("content" in updates && file.type === "file") {
     await recordFileVersion({
-      fileId: FileId,
+      fileId,
       projectId,
       content: updates.content ?? updatedFile.content,
       createdById: currentUser.id,
@@ -133,10 +141,14 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ projectId: string; FileId: string }> }
+  {
+    params,
+  }: { params: Promise<{ projectId: string; FileId?: string; fileId?: string }> }
 ) {
-  const { projectId, FileId } = await params;
-  if (!isValidObjectId(projectId) || !isValidObjectId(FileId)) {
+  const resolvedParams = await params;
+  const projectId = resolvedParams.projectId;
+  const fileId = resolveFileIdParam(resolvedParams);
+  if (!isValidObjectId(projectId) || !isValidObjectId(fileId)) {
     return NextResponse.json({ error: "Invalid resource id" }, { status: 400 });
   }
 
@@ -154,7 +166,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const fileAccess = await getFileAccess(FileId, currentUser.id);
+  const fileAccess = await getFileAccess(fileId, currentUser.id);
   if (!fileAccess?.access.canWrite) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -162,7 +174,7 @@ export async function DELETE(
   // Delete the file (folders are deleted without cascade since MongoDB doesn't auto-cascade)
   // For folders, we should also delete all children recursively
   const file = await prisma.file.findUnique({
-    where: { id: FileId },
+    where: { id: fileId },
   });
 
   if (!file || file.projectId !== projectId) {
@@ -173,9 +185,9 @@ export async function DELETE(
   const fileType = (file as unknown as { type: string }).type;
 
   if (fileType === "folder") {
-    await deleteProjectFileTree(projectId, FileId);
+    await deleteProjectFileTree(projectId, fileId);
   } else {
-    await prisma.file.delete({ where: { id: FileId } });
+    await prisma.file.delete({ where: { id: fileId } });
   }
 
   return NextResponse.json({ success: true });

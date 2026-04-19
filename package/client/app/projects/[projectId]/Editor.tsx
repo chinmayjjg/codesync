@@ -47,13 +47,17 @@ export default function CodeEditor({
     let decorationIds: string[] = [];
 
     const wsUrl = getClientEnv().NEXT_PUBLIC_WS_URL;
-    const fullWsUrl = wsToken
-      ? `${wsUrl}?token=${encodeURIComponent(wsToken)}`
-      : wsUrl;
     const provider = new WebsocketProvider(
-      fullWsUrl,
+      wsUrl,
       file.id,
-      ydoc
+      ydoc,
+      wsToken
+        ? {
+            params: {
+              token: wsToken,
+            },
+          }
+        : undefined
     );
     onConnectionStatusChange?.("connecting");
 

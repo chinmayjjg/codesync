@@ -11,12 +11,20 @@ import {
   parseJsonObject,
 } from "../../../../../../../lib/validation";
 
+function resolveFileIdParam(params: { FileId?: string; fileId?: string }) {
+  return params.FileId ?? params.fileId ?? "";
+}
+
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ projectId: string; FileId: string }> }
+  {
+    params,
+  }: { params: Promise<{ projectId: string; FileId?: string; fileId?: string }> }
 ) {
-  const { projectId, FileId } = await params;
-  if (!isValidObjectId(projectId) || !isValidObjectId(FileId)) {
+  const resolvedParams = await params;
+  const projectId = resolvedParams.projectId;
+  const fileId = resolveFileIdParam(resolvedParams);
+  if (!isValidObjectId(projectId) || !isValidObjectId(fileId)) {
     return NextResponse.json({ error: "Invalid resource id" }, { status: 400 });
   }
 
@@ -26,21 +34,25 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const fileAccess = await getFileAccess(FileId, currentUser.id);
+  const fileAccess = await getFileAccess(fileId, currentUser.id);
   if (!fileAccess?.access.canRead || fileAccess.access.projectId !== projectId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const versions = await listFileVersions(FileId);
+  const versions = await listFileVersions(fileId);
   return NextResponse.json(versions);
 }
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ projectId: string; FileId: string }> }
+  {
+    params,
+  }: { params: Promise<{ projectId: string; FileId?: string; fileId?: string }> }
 ) {
-  const { projectId, FileId } = await params;
-  if (!isValidObjectId(projectId) || !isValidObjectId(FileId)) {
+  const resolvedParams = await params;
+  const projectId = resolvedParams.projectId;
+  const fileId = resolveFileIdParam(resolvedParams);
+  if (!isValidObjectId(projectId) || !isValidObjectId(fileId)) {
     return NextResponse.json({ error: "Invalid resource id" }, { status: 400 });
   }
 
@@ -58,7 +70,7 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const fileAccess = await getFileAccess(FileId, currentUser.id);
+  const fileAccess = await getFileAccess(fileId, currentUser.id);
   if (!fileAccess?.access.canWrite || fileAccess.access.projectId !== projectId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -92,17 +104,17 @@ export async function POST(
     where: { id: versionId },
   });
 
-  if (!version || version.fileId !== FileId || version.projectId !== projectId) {
+  if (!version || version.fileId !== fileId || version.projectId !== projectId) {
     return NextResponse.json({ error: "Version not found" }, { status: 404 });
   }
 
   const updatedFile = await prisma.file.update({
-    where: { id: FileId },
+    where: { id: fileId },
     data: { content: version.content },
   });
 
   await recordFileVersion({
-    fileId: FileId,
+    fileId,
     projectId,
     content: version.content,
     createdById: currentUser.id,
